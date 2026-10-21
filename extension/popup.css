@@ -1,0 +1,72 @@
+/* Toolbar popup. Result card styles come from card.css. */
+
+* { box-sizing: border-box; }
+
+body {
+  width: 400px; max-width: 100%; margin: 0;
+  background: #fff; color: var(--ink);
+  font: 16px/1.5 var(--font);
+}
+p { margin: 0; }
+ul { list-style: none; margin: 0; padding: 0; }
+button { font: inherit; }
+:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; border-radius: 6px; }
+
+.banner { background: #eaf3f9; border-bottom: 1px solid var(--line); text-align: center; font-size: 14px; padding: 6px 12px; }
+
+.head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.logo { display: inline-flex; align-items: center; gap: 8px; font-weight: 750; font-size: 20px; letter-spacing: -0.02em; }
+.logo svg { width: 28px; height: 28px; color: var(--primary); }
+.logo .a { color: var(--primary); }
+.logo .b { color: var(--green); }
+
+nav { display: flex; gap: 2px; }
+.tab { border: 0; background: none; color: var(--muted); font-weight: 600; padding: 8px 12px; min-height: 40px; border-radius: 999px; cursor: pointer; }
+.tab:hover { background: var(--tint); color: var(--ink); }
+.tab[aria-current="page"] { background: #e2effd; color: var(--primary-dark); }
+
+main { padding: 14px; }
+main [hidden] { display: none !important; }
+
+.label { display: block; font-weight: 650; margin-bottom: 8px; }
+textarea {
+  display: block; width: 100%; min-height: 110px; resize: vertical;
+  font: inherit; color: var(--ink); padding: 10px 12px;
+  border: 2px solid #b9cddb; border-radius: 12px;
+}
+textarea::placeholder { color: #5d7183; }
+textarea:focus-visible { outline: 3px solid rgba(11, 95, 154, 0.35); outline-offset: 0; border-color: var(--primary); }
+textarea[aria-invalid="true"] { border-color: #8b1a1a; }
+
+.err { margin-top: 8px; padding: 8px 12px; border-radius: 10px; background: #fde7e7; color: #8b1a1a; border: 1px solid #e49a9a; font-weight: 600; font-size: 15px; }
+
+.row { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
+.btn { border: 2px solid transparent; border-radius: 12px; padding: 10px 20px; min-height: 44px; font-weight: 650; cursor: pointer; }
+.btn.primary { background: var(--primary); color: #fff; }
+.btn.primary:hover { background: var(--primary-dark); }
+.btn.primary:disabled { background: #6f93ae; cursor: progress; }
+.btn.quiet { background: #fff; color: var(--primary-dark); border-color: #b9cddb; padding: 6px 14px; min-height: 40px; }
+.btn.quiet:hover { background: var(--tint); }
+
+.loading { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-weight: 600; }
+.spinner { width: 20px; height: 20px; border-radius: 50%; border: 3px solid #cfe0ec; border-top-color: var(--primary); animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.ex-label { margin-top: 16px; font-weight: 650; font-size: 15px; }
+.chips { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.chip { text-align: left; width: 100%; cursor: pointer; color: var(--primary-dark); background: var(--tint); border: 1.5px solid #bcd3e2; border-radius: 12px; padding: 8px 14px; min-height: 40px; font-size: 15px; }
+.chip:hover { background: #e3f0f7; border-color: var(--primary); }
+
+#view-result .im-card { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: 0 1px 2px rgba(16,42,67,.06), 0 6px 18px rgba(16,42,67,.08); }
+#result:focus { outline: none; }
+.result-actions { margin-top: 14px; }
+
+.muted { color: var(--muted); font-size: 15px; }
+.hist-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.hist { display: grid; gap: 10px; }
+.hist-item { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; width: 100%; text-align: left; cursor: pointer; color: inherit; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; }
+.hist-item:hover { border-color: var(--primary); }
+.hist-snippet { font-weight: 600; font-size: 15px; overflow-wrap: anywhere; }
+.hist-time { color: var(--muted); font-size: 13px; }
+
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }

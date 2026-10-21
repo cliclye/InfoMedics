@@ -6,6 +6,10 @@ Infomedics helps people check whether health information, especially AI-generate
 
 No install, no build, no server. Open `index.html` in any modern browser (double-click it, or run `open index.html` on macOS).
 
+## Browser extension
+
+The `extension/` folder is a Chrome/Edge extension that checks text you select on any page. See [extension/README.md](extension/README.md) for install steps.
+
 ## What you can do
 
 - **Check:** paste a claim, or click one of the three example chips, then press **Check claim** (or Ctrl/⌘ + Enter). A 1.5-second spinner simulates analysis.

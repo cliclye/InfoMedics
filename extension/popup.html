@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Infomedics</title>
+  <link rel="stylesheet" href="card.css">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="banner" role="note"><strong>Prototype:</strong> results are simulated.</div>
+
+  <header class="head">
+    <span class="logo">
+      <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M16 8.5v15M8.5 16h15" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg>
+      <span><span class="a">Info</span><span class="b">medics</span></span>
+    </span>
+    <nav aria-label="Popup">
+      <button type="button" class="tab" data-view="check" aria-current="page">Check</button>
+      <button type="button" class="tab" data-view="history">History</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="view-check">
+      <form id="form" novalidate>
+        <label for="claim" class="label">Paste a health claim or AI answer here.</label>
+        <textarea id="claim" rows="5" maxlength="2000" aria-describedby="err"
+          placeholder="Tip: select text on any page, then click the Infomedics button that appears."></textarea>
+        <p id="err" class="err" role="alert" hidden></p>
+        <div class="row">
+          <button type="submit" id="go" class="btn primary">Check claim</button>
+          <p id="loading" class="loading" role="status" hidden><span class="spinner" aria-hidden="true"></span><span>Checking…</span></p>
+        </div>
+        <p class="ex-label" id="ex-label">Or try an example:</p>
+        <ul id="examples" class="chips" aria-labelledby="ex-label"></ul>
+      </form>
+    </section>
+
+    <section id="view-result" hidden aria-label="Result">
+      <div id="result" aria-live="polite" tabindex="-1"></div>
+      <div class="result-actions">
+        <button type="button" class="btn primary" id="again">Check another claim</button>
+      </div>
+    </section>
+
+    <section id="view-history" hidden aria-label="History">
+      <div class="hist-head">
+        <p class="muted">Claims you checked in the extension.</p>
+        <button type="button" class="btn quiet" id="clear">Clear history</button>
+      </div>
+      <ul id="hist" class="hist"></ul>
+      <p id="hist-empty" class="muted" hidden>No checks yet. Claims you check will show up here.</p>
+    </section>
+  </main>
+
+  <script src="data.js"></script>
+  <script src="render.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
