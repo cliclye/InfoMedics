@@ -248,3 +248,11 @@ test('a search plan replaces the claim\'s keywords, its topics are searched, and
   assert.equal(r.usage.calls, 1);
   assert.equal(r.usage.inputTokens, 300);
 });
+
+test('a typed claim is not flagged for naming no source, but a pasted answer stating things as fact is', async () => {
+  const { deps: d } = deps();
+  const typed = await runCheck('milk helps with bone growth', { deps: d });
+  assert.ok(!typed.claims[0].redFlags.some((f) => f.type === 'no_source'));
+  const pasted = await runCheck('Great question! Milk helps with bone growth in children. Vitamin C cures the common cold. Garlic lowers your blood pressure fast.', { deps: d });
+  assert.ok(pasted.claims.some((c) => c.redFlags.some((f) => f.type === 'no_source' && /Doesn’t say where/.test(f.label))));
+});
