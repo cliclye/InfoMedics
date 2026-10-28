@@ -59,6 +59,21 @@ Things to know:
 
 Progress streams to the UI as it happens.
 
+## What it costs to run
+
+AI verdicts use Claude Haiku 5.5 at the lowest effort ($0.10 per million input tokens, $0.50 per million output tokens). Measured against the real API, one claim costs **about $0.0005 to $0.0007**, so roughly 1,500 checks per dollar. Each result shows the tokens used and the estimated cost.
+
+What keeps it low without hurting accuracy:
+
+- **Smaller prompts.** Each paper is sent as a digest (aim, key methods, results, conclusion) instead of the whole abstract, at most 4 papers plus 2 health-agency pages per claim, and agency text is trimmed to what a judge needs.
+- **Small answers.** Output costs five times as much as input, so the model is asked for 2 to 3 sentences, notes of at most 12 words and only for sources it cites, and replies are capped at 2,500 tokens.
+- **Prompt caching.** The fixed instructions and schema (about 1,500 tokens) are cached, and cache reads cost a tenth of normal input.
+- **Repeat checks are free.** A claim checked again against the same sources is answered from a saved result for 24 hours, with no API call.
+- **No call when none is needed.** Emergency wording goes straight to "call emergency services" without the model.
+- **Daily budget.** `INFOMEDICS_DAILY_TOKEN_BUDGET` (default 2,000,000 tokens, about $0.50 to $1 a day; `0` turns it off) pauses AI verdicts for the rest of the UTC day once it is used up; the site keeps working in evidence-only mode and says so. The count is kept in memory, so on Netlify each warm function instance counts separately: treat it as a safety net and also set a spending limit in the Anthropic console.
+
+Accuracy is protected where it matters most: the model sees the best evidence (study type, recency and MEDLINE-indexing decide the order), must cite only sources it was given, and every citation is checked by the server.
+
 ## Safety and privacy
 
 - **Link fetching is hardened against SSRF.** Only http/https on ports 80/443; every resolved address is checked at connection time, so localhost, private ranges, cloud metadata addresses, and DNS tricks are refused, including through redirects. Size, time, and redirect limits apply.

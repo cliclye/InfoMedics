@@ -297,9 +297,13 @@ function renderResult(r) {
   }
 
   const seconds = (r.elapsedMs / 1000).toFixed(1);
+  const tokens = r.usage ? r.usage.inputTokens + r.usage.outputTokens + r.usage.cacheReadTokens + r.usage.cacheWriteTokens : 0;
+  const usageLine = r.usage && (tokens || r.usage.cachedCalls)
+    ? ` ${r.usage.calls ? `AI used ${tokens.toLocaleString('en-US')} tokens${r.usage.estCostUsd ? ` (about $${r.usage.estCostUsd < 0.0001 ? '0.0001' : r.usage.estCostUsd.toFixed(4)})` : ''}` : 'Answered from a saved earlier check, so no AI tokens were used'}.`
+    : '';
   const modeLine = r.mode === 'ai'
     ? `AI verdict by ${esc(r.model)}, weighed against the sources shown.`
-    : 'Evidence-only mode: no AI model is connected, so claims are not rated.';
+    : (r.aiOn ? 'No AI verdict for this check.' : 'Evidence-only mode: no AI model is connected, so claims are not rated.');
 
   $('#result-region').innerHTML = `
     <h1 class="sr-only" id="result-heading" tabindex="-1">Result</h1>
@@ -311,7 +315,7 @@ function renderResult(r) {
       </div>
     </div>
     ${emergency}${body}
-    <p class="meta-line">${modeLine} Checked in ${esc(seconds)}s.</p>`;
+    <p class="meta-line">${modeLine} Checked in ${esc(seconds)}s.${esc(usageLine)}</p>`;
 }
 
 // ---------- Rendering: history ----------
@@ -573,7 +577,7 @@ async function loadStatus() {
   chip.hidden = false;
   chip.classList.toggle('on', Boolean(status.ai));
   chip.innerHTML = '<span class="chip-dot" aria-hidden="true"></span><span class="chip-text"></span>';
-  $('.chip-text', chip).textContent = status.ai ? `AI verdicts on · ${status.model}` : 'Evidence-only mode';
+  $('.chip-text', chip).textContent = status.ai ? `AI verdicts on · ${status.model}` : (status.paused ? 'AI paused today (cost limit)' : 'Evidence-only mode');
   chip.title = status.ai ? 'Claims are weighed against the evidence by an AI model.' : 'No AI model is connected, so claims are not rated. Add ANTHROPIC_API_KEY to enable verdicts.';
 }
 

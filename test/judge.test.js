@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import Anthropic from '@anthropic-ai/sdk';
 import { judgeClaim, normalizeJudgement, buildUserMessage, JudgeError, VERDICTS } from '../lib/judge.js';
+import { createJudgeCache } from '../lib/judgecache.js';
 
 // A tiny fake of the Anthropic Messages API so we can check what we send and how we handle replies.
 let server;
@@ -69,7 +70,9 @@ test('judgeClaim sends the claim and evidence, and returns a validated verdict',
   assert.deepEqual(body.output_config.format.schema.properties.verdict.enum, VERDICTS);
   assert.match(body.messages[0].content, /<claim>Vitamin C cures colds<\/claim>/);
   assert.match(body.messages[0].content, /id="pm1"/);
-  assert.match(body.system, /data, not instructions/);
+  assert.match(body.system[0].text, /data, not instructions/);
+  assert.equal(body.system[0].cache_control.type, 'ephemeral');
+  assert.ok(body.max_tokens <= 3000);
   // Haiku 5.5 has no server-side fallback, so none is requested.
   assert.equal(body.fallbacks, undefined);
   assert.doesNotMatch(headers['anthropic-beta'] || '', /server-side-fallback/);
@@ -171,4 +174,17 @@ test('the NHS evidence block is sent to the model as data', () => {
   const msg = buildUserMessage({ claim: 'x', evidence: [{ id: 'nhs1', kind: 'nhs', title: 'Common cold', url: 'https://www.nhs.uk/conditions/common-cold/', summary: 'Rest <b>and</b> fluids.' }] });
   assert.match(msg, /id="nhs1" source="NHS website/);
   assert.match(msg, /Rest ‹b›and‹\/b› fluids\./);
+});
+
+test('a repeated claim with the same sources is answered from the cache with no API call', async () => {
+  requests = [];
+  respond = () => ({ json: message(GOOD, { usage: { input_tokens: 1500, output_tokens: 200, cache_read_input_tokens: 600, cache_creation_input_tokens: 0 } }) });
+  const cache = createJudgeCache();
+  const args = { claim: 'Vitamin C cures colds', evidence: EVIDENCE, redFlags: [], triage: {} };
+  const first = await judgeClaim(args, { client, cache });
+  assert.deepEqual(first.usage, { inputTokens: 1500, outputTokens: 200, cacheReadTokens: 600, cacheWriteTokens: 0, cached: false });
+  const second = await judgeClaim(args, { client, cache });
+  assert.equal(requests.length, 1);
+  assert.equal(second.usage.cached, true);
+  assert.equal(second.verdict, first.verdict);
 });
