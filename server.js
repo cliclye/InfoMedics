@@ -8,9 +8,11 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { runCheck, UserError, MAX_INPUT_CHARS } from './lib/pipeline.js';
 import { aiEnabled, modelName } from './lib/judge.js';
+import { SECURITY_HEADERS, EXTENSION_ORIGIN, allowedOriginsFromEnv, originAllowed as originOk, createLimiter, statusBody } from './lib/api.js';
+
+export { EXTENSION_ORIGIN };
 
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'public');
-const VERSION = '0.2.0';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -21,14 +23,6 @@ const MIME = {
   '.ico': 'image/x-icon',
   '.json': 'application/json; charset=utf-8',
   '.txt': 'text/plain; charset=utf-8'
-};
-
-const SECURITY_HEADERS = {
-  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
-  'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options': 'DENY',
-  'Referrer-Policy': 'no-referrer',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
 };
 
 function sendJson(res, status, body) {
@@ -47,20 +41,8 @@ async function readJsonBody(req, limit = 24 * 1024) {
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw new UserError('bad_request', 'Invalid request.'); }
 }
 
-// The Infomedics browser extension has a fixed ID (its manifest pins a public key), so its origin can be
-// allowed without opening the API to arbitrary websites. More origins: INFOMEDICS_ALLOWED_ORIGINS=a,b
-export const EXTENSION_ORIGIN = 'chrome-extension://lcegaobephfoomldladmepmjimegeehi';
-
-function defaultAllowedOrigins() {
-  const extra = (process.env.INFOMEDICS_ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
-  return new Set([EXTENSION_ORIGIN, ...extra]);
-}
-
 function originAllowed(req, allowedOrigins) {
-  const origin = req.headers.origin;
-  if (!origin) return true; // non-browser clients (curl) and same-origin GET-like requests
-  if (allowedOrigins.has(origin)) return true;
-  try { return new URL(origin).host === req.headers.host; } catch { return false; }
+  return originOk(req.headers.origin, req.headers.host, allowedOrigins);
 }
 
 // DNS rebinding: a hostile site can point its own domain at 127.0.0.1, which makes its requests look
@@ -99,24 +81,12 @@ async function serveStatic(req, res, pathname) {
  * @param {{deps?: object, rateLimit?: {max: number, windowMs: number}, maxConcurrent?: number, allowedOrigins?: Set<string>}} options
  */
 export function createApp({
-  deps, rateLimit = { max: 20, windowMs: 60_000 }, maxConcurrent = 6, allowedOrigins = defaultAllowedOrigins(),
+  deps, rateLimit = { max: 20, windowMs: 60_000 }, maxConcurrent = 6, allowedOrigins = allowedOriginsFromEnv(),
   // null turns the Host check off (for servers deliberately exposed on a network).
   allowedHosts = isLoopbackBind(process.env.HOST) ? new Set() : null
 } = {}) {
-  const hits = new Map(); // ip -> timestamps
+  const limited = createLimiter(rateLimit);
   let running = 0;
-
-  function limited(ip) {
-    const now = Date.now();
-    if (hits.size > 5000) { // forget addresses that have gone quiet
-      for (const [key, times] of hits) if (!times.length || now - times[times.length - 1] >= rateLimit.windowMs) hits.delete(key);
-    }
-    const recent = (hits.get(ip) || []).filter((t) => now - t < rateLimit.windowMs);
-    if (recent.length >= rateLimit.max) { hits.set(ip, recent); return true; }
-    recent.push(now);
-    hits.set(ip, recent);
-    return false;
-  }
 
   async function handleCheck(req, res) {
     if (!originAllowed(req, allowedOrigins)) return sendJson(res, 403, { error: 'Cross-origin requests are not allowed.' });
@@ -167,7 +137,7 @@ export function createApp({
       if (!hostAllowed(req, allowedHosts)) return sendJson(res, 403, { error: 'Unknown host. Open Infomedics at http://localhost.' });
       const { pathname } = new URL(req.url, 'http://localhost');
       if (pathname === '/api/status' && req.method === 'GET') {
-        return sendJson(res, 200, { ok: true, version: VERSION, ai: aiEnabled(), model: aiEnabled() ? modelName() : null, maxChars: MAX_INPUT_CHARS });
+        return sendJson(res, 200, statusBody());
       }
       if (pathname === '/api/check') {
         if (req.method !== 'POST') return sendJson(res, 405, { error: 'Use POST.' });

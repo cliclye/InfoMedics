@@ -28,6 +28,21 @@ To enable verdicts, copy `.env.example` to `.env` and set `ANTHROPIC_API_KEY`. T
 
 Other optional settings: `NCBI_API_KEY` and `NCBI_EMAIL` (higher PubMed rate limit), `PORT`, `HOST` (default `127.0.0.1`, local only), `INFOMEDICS_ALLOWED_ORIGINS` (extra origins allowed to call the API, comma-separated).
 
+## Deploy on Netlify
+
+The repo is ready to deploy as is. `netlify.toml` publishes `public/` as the site, and `netlify/functions/api.mjs` serves `/api/check` and `/api/status` using the same code as the local server.
+
+1. In Netlify, import the GitHub repo. No build command is needed; the publish directory (`public`) and functions directory come from `netlify.toml`.
+2. Optional: add `ANTHROPIC_API_KEY` under Site configuration, Environment variables to turn on AI verdicts. Without it the site runs in evidence-only mode.
+3. Optional: `NCBI_API_KEY` and `NCBI_EMAIL` (higher PubMed rate limit), `INFOMEDICS_DEADLINE_MS` (default 9000).
+
+Things to know:
+
+- **Time limit.** Netlify stops long functions (streaming ones are documented at 10 seconds, though plans and settings vary). A check is stopped after `INFOMEDICS_DEADLINE_MS` and shows a "took too long" message instead of hanging. If checks of long pages time out, raise it together with the limit in your Netlify plan.
+- **Rate limit.** The per-address limit lives in each function instance's memory, so it is best effort. With an API key set, anyone who finds the site can spend your Anthropic credits; put a spending limit on the key, or leave AI off.
+- **Extension.** Open the extension popup, Settings, and set the server address to your Netlify URL.
+- Run `npx netlify dev` to try the same setup locally.
+
 ## What a check does
 
 1. **Read.** Pasted text is used as written. For a link, the server downloads the page and extracts the article text, author, dates, and outbound links.
@@ -69,6 +84,8 @@ npm run test:live   # hits the real PubMed, MedlinePlus, and nhs.uk
 
 ```
 server.js            HTTP server: static files, /api/status, streamed /api/check
+netlify/functions/  the same API as a Netlify Function (see Deploy on Netlify)
+lib/api.js          headers, origin rules, rate limit and the Web handler shared by both
 lib/pipeline.js      read -> claims -> evidence -> judge -> result
 lib/http.js          SSRF-safe page fetch, API fetch
 lib/html.js          HTML to text and metadata

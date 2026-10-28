@@ -312,7 +312,9 @@ async function streamCheck(text, signal, onEvent) {
     res = await fetch('/api/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ input: text }), signal });
   } catch (err) {
     if (err.name === 'AbortError') throw err;
-    throw new CheckError('Could not reach the Infomedics server. Start it with “npm start” and open http://localhost:3000.');
+    throw new CheckError(['localhost', '127.0.0.1'].includes(location.hostname)
+      ? 'Could not reach the Infomedics server. Start it with “npm start” and open http://localhost:3000.'
+      : 'Could not reach the Infomedics server. Check your connection and try again.');
   }
   if (!res.ok) {
     let message = `The server returned an error (${res.status}).`;
