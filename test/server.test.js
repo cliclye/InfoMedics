@@ -36,7 +36,7 @@ test('serves the app with security headers', async () => {
   assert.match(res.headers.get('content-type'), /text\/html/);
   assert.match(res.headers.get('content-security-policy'), /script-src 'self'/);
   assert.equal(res.headers.get('x-content-type-options'), 'nosniff');
-  assert.match(await res.text(), /Is that health claim actually true/);
+  assert.match(await res.text(), /Is that health claim[\s\S]*actually true/);
   assert.equal((await fetch(base + '/app.js')).status, 200);
   assert.equal((await fetch(base + '/styles.css')).status, 200);
 });
@@ -129,4 +129,34 @@ test('client disconnect aborts the check', async () => {
   await new Promise((r) => setTimeout(r, 300));
   assert.equal(aborted, true);
   s.closeAllConnections?.(); s.close();
+});
+
+test('rejects requests whose Host header is not loopback (DNS rebinding)', async () => {
+  const { request } = await import('node:http');
+  const status = (hostHeader, path = '/api/status') => new Promise((resolve, reject) => {
+    const req = request({ host: '127.0.0.1', port: server.address().port, path, headers: { Host: hostHeader } }, (res) => { res.resume(); resolve(res.statusCode); });
+    req.on('error', reject);
+    req.end();
+  });
+  assert.equal(await status('evil.example:3000'), 403);
+  assert.equal(await status('evil.example:3000', '/'), 403);
+  assert.equal(await status('localhost:3000'), 200);
+  assert.equal(await status('[::1]:3000'), 200);
+});
+
+test('Host check can be turned off for servers exposed on a network', async () => {
+  const open = await start({ allowedHosts: null });
+  try {
+    const { request } = await import('node:http');
+    const code = await new Promise((resolve, reject) => {
+      const req = request({ host: '127.0.0.1', port: open.address().port, path: '/api/status', headers: { Host: 'my-server.lan' } }, (res) => { res.resume(); resolve(res.statusCode); });
+      req.on('error', reject); req.end();
+    });
+    assert.equal(code, 200);
+  } finally { open.closeAllConnections?.(); open.close(); }
+});
+
+test('a JSON null body is a 400, not a crash', async () => {
+  const res = await post('null');
+  assert.equal(res.status, 400);
 });

@@ -66,7 +66,8 @@ async function runCheck(port, rawText, abort) {
       post(port, { type: 'error', message: failure || 'No result came back. Please try again.' });
       return;
     }
-    await saveToHistory(result);
+    // A full or broken history store must not hide a result we already have.
+    try { await saveToHistory(result); } catch (e) { /* ignore */ }
     post(port, { type: 'result', result: result, serverUrl: serverUrl });
   } catch (e) {
     if (abort.signal.aborted) return;

@@ -43,7 +43,8 @@ Progress streams to the UI as it happens.
 ## Safety and privacy
 
 - **Link fetching is hardened against SSRF.** Only http/https on ports 80/443; every resolved address is checked at connection time, so localhost, private ranges, cloud metadata addresses, and DNS tricks are refused, including through redirects. Size, time, and redirect limits apply.
-- The server binds to `127.0.0.1` by default, rejects cross-origin POSTs, rate-limits checks per IP, and serves a strict Content-Security-Policy.
+- The server binds to `127.0.0.1` by default, rejects cross-origin POSTs, rate-limits checks per IP, and serves a strict Content-Security-Policy. While it listens only on loopback it also refuses any request whose `Host` header is not `localhost`, `127.x.x.x` or `[::1]`, which stops DNS-rebinding attacks from other websites. (Set `HOST=0.0.0.0` to expose it on a network; that turns this check off, and the API has no login.)
+- Pages you link to are untrusted input: HTML is scanned in linear time, so a hostile page cannot stall the server.
 - Page text and abstracts are treated as untrusted data in the AI prompt, and model output is schema-validated.
 - Your API key stays on the server and is never sent to the browser.
 - History is stored only in your browser's local storage.

@@ -34,6 +34,10 @@
     return new Error('Could not reach the Infomedics server at ' + serverUrl + '. Start it with “npm start”, or change the address in the extension’s Settings.');
   }
 
+  function parseEvent(line) {
+    try { return JSON.parse(line); } catch (e) { throw new Error('The server sent an unreadable response. Make sure it is the Infomedics server.'); }
+  }
+
   /**
    * POST the text to the server and call onEvent for each streamed event.
    * Throws an Error with a user-friendly message on connection or HTTP problems.
@@ -53,7 +57,7 @@
     }
     if (!res.ok) {
       var message = 'The server returned an error (' + res.status + ').';
-      if (res.status === 403) message = 'The server refused this request. Update the Infomedics server to the latest version and try again.';
+      if (res.status === 403) message = 'The server refused this request. If it runs on another machine, start it there with HOST=0.0.0.0; otherwise update the Infomedics server and try again.';
       try { var body = await res.json(); if (body && body.error && res.status !== 403) message = body.error; } catch (e) { /* keep default */ }
       throw new Error(message);
     }
@@ -69,10 +73,10 @@
       while ((newline = buffer.indexOf('\n')) >= 0) {
         var line = buffer.slice(0, newline).trim();
         buffer = buffer.slice(newline + 1);
-        if (line) onEvent(JSON.parse(line));
+        if (line) onEvent(parseEvent(line));
       }
     }
-    if (buffer.trim()) onEvent(JSON.parse(buffer.trim()));
+    if (buffer.trim()) onEvent(parseEvent(buffer.trim()));
   }
 
   /**

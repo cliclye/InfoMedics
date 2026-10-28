@@ -73,3 +73,12 @@ test('red flags: calm, careful wording gets none of the wording flags', () => {
   const flags = findRedFlags('A review of trials found that regular exercise may modestly lower blood pressure.', { checkSource: false });
   assert.deepEqual(flags, []);
 });
+
+test('general claims that mention an emergency are not emergencies; someone in trouble is', () => {
+  assert.equal(triage('Aspirin prevents heart attack').emergency, false);
+  assert.equal(triage('Vitamin E reduces the risk of stroke symptoms').emergency, false);
+  assert.equal(triage('Garlic can treat seizures').emergency, false);
+  assert.equal(triage('I think I am having a heart attack').emergency, true);
+  assert.equal(triage('My dad is choking right now').emergency, true);
+  assert.equal(triage('I can\'t breathe').emergency, true);
+});

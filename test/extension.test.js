@@ -137,6 +137,16 @@ test('background: runs a check against the server, relays progress, and saves hi
   assert.equal(bg.storage.history[0].id, done.result.id);
 });
 
+test('background: a history store that cannot be written does not hide the result', async () => {
+  const bg = startBackground();
+  bg.storage.serverUrl = serverUrl;
+  bg.chrome.storage.local.set = async () => { throw new Error('QUOTA_BYTES quota exceeded'); };
+  const conn = connect(bg);
+  conn.send({ type: 'check', text: 'Vitamin C cures the common cold' });
+  await until(() => conn.received.some((m) => m.type === 'result' || m.type === 'error'));
+  assert.equal(conn.received.at(-1).type, 'result');
+});
+
 test('background: server errors and empty text come back as error messages, nothing saved', async () => {
   const bg = startBackground();
   bg.storage.serverUrl = serverUrl;

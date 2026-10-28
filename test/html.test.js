@@ -68,3 +68,31 @@ test('trusted and institutional domains are recognised', () => {
   assert.equal(assessPage({ url: 'https://www.nhs.uk/x', finalUrl: 'https://www.nhs.uk/x', extracted: ex }).domain.tier, 'trusted');
   assert.equal(assessPage({ url: 'https://med.stanford.edu/x', finalUrl: 'https://med.stanford.edu/x', extracted: ex }).domain.tier, 'institutional');
 });
+
+test('hostile markup cannot stall extraction', () => {
+  const nasty = {
+    unclosedNav: '<html><body>' + '<nav>'.repeat(200_000) + '</body></html>',
+    unclosedComment: '<html><body>' + '<!--'.repeat(200_000) + '</body></html>',
+    unclosedTitle: '<title>'.repeat(200_000),
+    strayLt: '<html><body>' + '<'.repeat(600_000) + '</body></html>',
+    openAnchors: '<body>' + '<a '.repeat(300_000),
+    giantTag: '<html><body><a ' + 'a'.repeat(1_400_000) + '>x</a></body></html>'
+  };
+  for (const [name, html] of Object.entries(nasty)) {
+    const started = Date.now();
+    extractPage(html, 'https://example.com/');
+    assert.ok(Date.now() - started < 1500, `${name} took ${Date.now() - started}ms`);
+  }
+});
+
+test('extractPage keeps the content of pages wrapped in a single <form>', () => {
+  const body = '<p>Vitamin C is a nutrient that supports the immune system and some studies suggest it may shorten colds slightly.</p>'.repeat(12);
+  const p = extractPage(`<html><body><form id="aspnetForm">${body}</form></body></html>`, 'https://example.com/');
+  assert.ok(p.wordCount > 100, `only ${p.wordCount} words`);
+});
+
+test('extractPage reads titles and rel=author links without regex backtracking', () => {
+  const p = extractPage('<html><head><TITLE>Big &amp; Small</TITLE></head><body><main><a REL="author nofollow" href="/x">Dr Ana Ruiz</a> wrote this. ' + 'Words about health. '.repeat(10) + '</main></body></html>', 'https://example.com/');
+  assert.equal(p.title, 'Big & Small');
+  assert.equal(p.author, 'Dr Ana Ruiz');
+});

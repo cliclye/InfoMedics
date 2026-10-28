@@ -63,6 +63,18 @@ function originAllowed(req, allowedOrigins) {
   try { return new URL(origin).host === req.headers.host; } catch { return false; }
 }
 
+// DNS rebinding: a hostile site can point its own domain at 127.0.0.1, which makes its requests look
+// same-origin. A server that listens only on loopback therefore also insists on a loopback Host header.
+const LOOPBACK_HOST = /^(?:localhost|127(?:\.\d{1,3}){3}|\[::1\])(?::\d+)?$/i;
+function isLoopbackBind(host) {
+  return !host || host === 'localhost' || host === '::1' || /^127\./.test(host);
+}
+function hostAllowed(req, allowedHosts) {
+  const host = String(req.headers.host || '');
+  if (allowedHosts === null) return true;
+  return LOOPBACK_HOST.test(host) || allowedHosts.has(host.toLowerCase());
+}
+
 async function serveStatic(req, res, pathname) {
   let rel;
   try { rel = decodeURIComponent(pathname); } catch { return sendJson(res, 400, { error: 'Bad request' }); }
@@ -86,12 +98,19 @@ async function serveStatic(req, res, pathname) {
 /**
  * @param {{deps?: object, rateLimit?: {max: number, windowMs: number}, maxConcurrent?: number, allowedOrigins?: Set<string>}} options
  */
-export function createApp({ deps, rateLimit = { max: 20, windowMs: 60_000 }, maxConcurrent = 6, allowedOrigins = defaultAllowedOrigins() } = {}) {
+export function createApp({
+  deps, rateLimit = { max: 20, windowMs: 60_000 }, maxConcurrent = 6, allowedOrigins = defaultAllowedOrigins(),
+  // null turns the Host check off (for servers deliberately exposed on a network).
+  allowedHosts = isLoopbackBind(process.env.HOST) ? new Set() : null
+} = {}) {
   const hits = new Map(); // ip -> timestamps
   let running = 0;
 
   function limited(ip) {
     const now = Date.now();
+    if (hits.size > 5000) { // forget addresses that have gone quiet
+      for (const [key, times] of hits) if (!times.length || now - times[times.length - 1] >= rateLimit.windowMs) hits.delete(key);
+    }
     const recent = (hits.get(ip) || []).filter((t) => now - t < rateLimit.windowMs);
     if (recent.length >= rateLimit.max) { hits.set(ip, recent); return true; }
     recent.push(now);
@@ -112,7 +131,7 @@ export function createApp({ deps, rateLimit = { max: 20, windowMs: 60_000 }, max
     try { body = await readJsonBody(req); } catch (err) {
       return sendJson(res, err instanceof UserError && err.code === 'too_long' ? 413 : 400, { error: err.message });
     }
-    if (typeof body.input !== 'string') return sendJson(res, 400, { error: 'Missing "input".' });
+    if (!body || typeof body.input !== 'string') return sendJson(res, 400, { error: 'Missing "input".' });
     if (body.input.length > MAX_INPUT_CHARS * 2) return sendJson(res, 413, { error: 'That is too long.' });
 
     res.writeHead(200, {
@@ -145,6 +164,7 @@ export function createApp({ deps, rateLimit = { max: 20, windowMs: 60_000 }, max
 
   return http.createServer(async (req, res) => {
     try {
+      if (!hostAllowed(req, allowedHosts)) return sendJson(res, 403, { error: 'Unknown host. Open Infomedics at http://localhost.' });
       const { pathname } = new URL(req.url, 'http://localhost');
       if (pathname === '/api/status' && req.method === 'GET') {
         return sendJson(res, 200, { ok: true, version: VERSION, ai: aiEnabled(), model: aiEnabled() ? modelName() : null, maxChars: MAX_INPUT_CHARS });

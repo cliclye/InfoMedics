@@ -30,6 +30,9 @@ before(async () => {
         res.writeHead(404); return res.end('no');
       case '/blocked':
         res.writeHead(403); return res.end('no');
+      case '/badredirect':
+        res.writeHead(302, { Location: 'http://[' });
+        return res.end();
       case '/slow':
         return; // never answers
       case '/latin1':
@@ -96,4 +99,13 @@ test('fetchPage caps the body size instead of reading everything', async () => {
   const res = await fetchPage(base + '/big', { allowPrivate: true, maxBytes: 100_000 });
   assert.equal(res.truncated, true);
   assert.ok(res.html.length <= 100_000);
+});
+
+test('a malformed redirect target is an error, not a crash', async () => {
+  await assert.rejects(fetchPage(base + '/badredirect', { allowPrivate: true }), (e) => e instanceof FetchError && e.code === 'http');
+});
+
+test('isPrivateIp refuses IPv6 forms that wrap IPv4 addresses', () => {
+  for (const ip of ['::7f00:1', '64:ff9b::7f00:1', '2002:7f00:1::1', '::ffff:7f00:1']) assert.equal(isPrivateIp(ip), true, ip);
+  assert.equal(isPrivateIp('2606:4700:4700::1111'), false);
 });

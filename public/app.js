@@ -55,7 +55,8 @@ const checkBtn = $('#check-btn');
 function loadHistory() {
   try {
     const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-    return Array.isArray(list) ? list : [];
+    // Ignore anything that is not shaped like a result (old versions, edited storage).
+    return Array.isArray(list) ? list.filter((r) => r && typeof r.id === 'string' && Array.isArray(r.claims) && r.claims.length) : [];
   } catch { return []; }
 }
 function saveHistory(list) {
@@ -79,6 +80,7 @@ function showView(name, { focus = true } = {}) {
   document.querySelectorAll('[data-nav]').forEach((a) => {
     if (a.dataset.nav === navKey) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
+  placePill();
   window.scrollTo(0, 0);
   if (!focus) return;
   const heading = name === 'result' ? $('#result-heading') : $('h1', views[name]);
@@ -118,7 +120,7 @@ function verdictCard(c, { showClaim = true, headingId = false } = {}) {
 
 function flagsBlock(c) {
   const body = c.redFlags.length
-    ? `<ul class="flags">${c.redFlags.map((f) => `<li class="flag"><span class="flag-icon" aria-hidden="true">⚑</span><span><small>${esc(f.label)}</small>${esc(f.text)}</span></li>`).join('')}</ul>`
+    ? `<ul class="flags">${c.redFlags.map((f) => `<li class="tile flag"><span class="flag-icon" aria-hidden="true">⚑</span><span><small>${esc(f.label)}</small>${esc(f.text)}</span></li>`).join('')}</ul>`
     : '<p class="no-flags">No red flags found in the wording of this claim.</p>';
   return `<section class="block"><h2>Red flags</h2>${body}</section>`;
 }
@@ -137,10 +139,10 @@ function evidenceItem(e) {
     ? `<span class="stance s-${esc(e.stance)}"><span aria-hidden="true">${STANCE[e.stance][1]}</span>${esc(STANCE[e.stance][0])}</span>` : '';
   const link = `<a class="ev-title" href="${esc(e.url)}" target="_blank" rel="noopener noreferrer">${esc(e.title)}<span class="sr-only"> (opens in a new tab)</span></a>`;
   if (e.kind === 'medlineplus') {
-    return `<li class="card ev"><div class="ev-meta"><span class="ev-design">MedlinePlus</span><span>Plain-language topic</span>${stance}</div>${link}
+    return `<li class="tile ev"><div class="ev-meta"><span class="ev-design">MedlinePlus</span><span>Plain-language topic</span>${stance}</div>${link}
       ${e.note ? `<p class="ev-note"><span class="label">What it says:</span> ${esc(e.note)}</p>` : `<p class="ev-note">${esc(e.summary)}</p>`}</li>`;
   }
-  return `<li class="card ev"><div class="ev-meta"><span class="ev-design">${esc(e.design)}</span>${e.year ? `<span>${esc(e.year)}</span>` : ''}<span>${esc(e.source)}</span>${stance}${!e.stance && TONE[e.tone] ? `<span class="stance s-neutral" title="A keyword guess from the conclusion's wording, not a judgement">Wording: ${esc(TONE[e.tone])}</span>` : ''}</div>${link}
+  return `<li class="tile ev"><div class="ev-meta"><span class="ev-design">${esc(e.design)}</span>${e.year ? `<span>${esc(e.year)}</span>` : ''}<span>${esc(e.source)}</span>${stance}${!e.stance && TONE[e.tone] ? `<span class="stance s-neutral" title="A keyword guess from the conclusion's wording, not a judgement">Wording: ${esc(TONE[e.tone])}</span>` : ''}</div>${link}
     ${e.note ? `<p class="ev-note"><span class="label">What it found:</span> ${esc(e.note)}</p>` : ''}
     ${e.conclusion ? `<p class="ev-note"><span class="label">Authors’ conclusion:</span> ${esc(e.conclusion)}</p>` : ''}</li>`;
 }
@@ -168,7 +170,7 @@ function confidenceBlock(c, { card = false } = {}) {
   const filled = { Low: 1, Medium: 2, High: 3 }[c.confidence.level] || 1;
   const segs = [1, 2, 3].map((i) => `<span class="seg${i <= filled ? ' on' : ''}"></span>`).join('');
   const inner = `<div class="confidence"><span class="meter" role="img" aria-label="Confidence: ${esc(c.confidence.level)}, ${filled} of 3">${segs}</span><strong>${esc(c.confidence.level)} confidence</strong></div><p class="muted">${esc(c.confidence.note)}</p>`;
-  return card ? `<section class="card side-card"><h2>Confidence</h2>${inner}</section>` : `<section class="block"><h2>Confidence</h2>${inner}</section>`;
+  return card ? `<section class="glass side-card"><h2>Confidence</h2>${inner}</section>` : `<section class="block"><h2>Confidence</h2>${inner}</section>`;
 }
 
 function linksBlock(c, { card = false, bare = false } = {}) {
@@ -176,7 +178,7 @@ function linksBlock(c, { card = false, bare = false } = {}) {
   const search = c.references.search.map((s) => `<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer"><span>${esc(s.name)}<small> · ${esc(s.note)}</small></span><span aria-hidden="true">↗</span></a>`).join('');
   const inner = `${topics ? `<div class="links">${topics}</div>` : ''}<p class="links-title">Search it yourself</p><div class="links">${search}</div>`;
   if (bare) return inner;
-  return card ? `<section class="card side-card"><h2>Read more</h2>${inner}</section>` : `<section class="block"><h2>Read more from trusted sources</h2>${inner}</section>`;
+  return card ? `<section class="glass side-card"><h2>Read more</h2>${inner}</section>` : `<section class="block"><h2>Read more from trusted sources</h2>${inner}</section>`;
 }
 
 function warningsBlock(c) {
@@ -201,7 +203,7 @@ function singleClaim(c) {
 }
 
 function claimCard(c, index, total) {
-  return `<article class="card claim-card" aria-label="Claim ${index + 1} of ${total}">
+  return `<article class="glass claim-card" aria-label="Claim ${index + 1} of ${total}">
     <p class="claim-index">Claim ${index + 1} of ${total}</p>
     ${verdictCard(c)}
     ${warningsBlock(c)}${explanationBlock(c)}${confidenceBlock(c)}${flagsBlock(c)}
@@ -212,8 +214,8 @@ function claimCard(c, index, total) {
 
 function pageCard(page) {
   const tier = { trusted: 'Known health organization', institutional: 'Government or university site', unknown: 'Reputation unknown' }[page.domain.tier];
-  const signals = page.signals.map((s) => `<li class="signal ${esc(s.status)}"><span class="signal-icon" aria-hidden="true">${{ good: '✓', warn: '!', info: 'i' }[s.status] || 'i'}</span><div><strong>${esc(s.label)}</strong><p>${esc(s.detail)}</p></div></li>`).join('');
-  return `<section class="card page-card" aria-label="Page assessment">
+  const signals = page.signals.map((s) => `<li class="tile signal ${esc(s.status)}"><span class="signal-icon" aria-hidden="true">${{ good: '✓', warn: '!', info: 'i' }[s.status] || 'i'}</span><div><strong>${esc(s.label)}</strong><p>${esc(s.detail)}</p></div></li>`).join('');
+  return `<section class="glass page-card" aria-label="Page assessment">
     <p class="eyebrow">Page checked</p>
     <h2>${esc(page.title || page.host)}</h2>
     <p class="page-host"><a href="${esc(page.finalUrl)}" target="_blank" rel="noopener noreferrer">${esc(page.host)}</a> · ${esc(tier)} · ${esc(page.wordCount.toLocaleString('en-US'))} words read</p>
@@ -276,12 +278,16 @@ function renderHistory() {
       : (r.claims[0] ? r.claims[0].claim : r.input.text);
     const when = new Date(r.ts).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
     const extra = r.kind === 'page' ? `Page · ${r.claims.length} claim${r.claims.length === 1 ? '' : 's'}` : (r.claims.length > 1 ? `${r.claims.length} claims` : 'Claim');
-    return `<li><a class="card history-item" href="#result/${esc(r.id)}">${badge(r.overall, overallRated(r))}<span><span class="history-snippet">${esc(snippet.length > 120 ? snippet.slice(0, 120) + '…' : snippet)}</span><span class="history-meta">${esc(extra)} · ${esc(when)}</span></span></a></li>`;
+    return `<li><a class="glass history-item" href="#result/${esc(r.id)}">${badge(r.overall, overallRated(r))}<span><span class="history-snippet">${esc(snippet.length > 120 ? snippet.slice(0, 120) + '…' : snippet)}</span><span class="history-meta">${esc(extra)} · ${esc(when)}</span></span></a></li>`;
   }).join('');
 }
 
 // ---------- Progress ----------
+const progressBar = $('#progress-bar');
+function setProgress(fraction) { progressBar.style.setProperty('--p', String(Math.max(0.06, Math.min(1, fraction)))); }
+
 function renderPlan(steps) {
+  setProgress(0.06);
   $('#progress-steps').innerHTML = steps.map((s) =>
     `<li class="step is-pending" data-step="${esc(s.id)}"><span class="step-icon" aria-hidden="true"></span><div><div class="step-label">${esc(s.label)}</div><p class="step-detail"></p></div></li>`).join('');
 }
@@ -292,6 +298,9 @@ function updateStep({ id, status: state, detail }) {
   el.classList.add(state === 'done' ? 'is-done' : 'is-active');
   $('.step-icon', el).textContent = state === 'done' ? '✓' : '';
   if (detail) $('.step-detail', el).textContent = detail;
+  const all = document.querySelectorAll('#progress-steps .step').length || 1;
+  const done = document.querySelectorAll('#progress-steps .is-done').length;
+  setProgress((done + (state === 'done' ? 0 : 0.5)) / all);
 }
 
 // ---------- Talking to the server ----------
@@ -414,6 +423,34 @@ document.addEventListener('click', async (e) => {
   }
 });
 
+// ---------- Polish: sliding nav pill, pointer highlight, platform key hint ----------
+const nav = $('#nav');
+function placePill() {
+  const active = $('a[aria-current="page"]', nav);
+  if (!active) { nav.classList.remove('ready'); return; }
+  nav.style.setProperty('--pill-x', `${active.parentElement.offsetLeft}px`);
+  nav.style.setProperty('--pill-w', `${active.offsetWidth}px`);
+  nav.classList.add('ready');
+}
+window.addEventListener('resize', placePill);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(placePill);
+
+let glowFrame = 0;
+document.addEventListener('pointermove', (e) => {
+  if (glowFrame || e.pointerType === 'touch') return;
+  const target = e.target.closest && e.target.closest('.glass');
+  if (!target) return;
+  glowFrame = requestAnimationFrame(() => {
+    glowFrame = 0;
+    const box = target.getBoundingClientRect();
+    target.style.setProperty('--mx', `${e.clientX - box.left}px`);
+    target.style.setProperty('--my', `${e.clientY - box.top}px`);
+  });
+});
+
+const isApple = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+if (!isApple) { const key = $('#input-hint kbd'); if (key) key.textContent = 'Ctrl'; }
+
 // ---------- Init ----------
 function renderExamples() {
   const list = $('#examples');
@@ -448,7 +485,8 @@ async function loadStatus() {
   } catch { return; }
   chip.hidden = false;
   chip.classList.toggle('on', Boolean(status.ai));
-  chip.textContent = status.ai ? `AI verdicts on · ${status.model}` : 'Evidence-only mode';
+  chip.innerHTML = '<span class="chip-dot" aria-hidden="true"></span><span class="chip-text"></span>';
+  $('.chip-text', chip).textContent = status.ai ? `AI verdicts on · ${status.model}` : 'Evidence-only mode';
   chip.title = status.ai ? 'Claims are weighed against the evidence by an AI model.' : 'No AI model is connected, so claims are not rated. Add ANTHROPIC_API_KEY to enable verdicts.';
 }
 

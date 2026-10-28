@@ -168,3 +168,29 @@ test('topicIsRelevant keeps topics that share a word with the search terms', () 
   assert.equal(topicIsRelevant({ title: 'Heart Attack' }, ['vitamin c', 'common cold']), false);
   assert.equal(topicIsRelevant({ title: 'Antibiotics' }, ['antibiotics', 'food']), true);
 });
+
+test('text with nothing searchable is not treated as a claim', async () => {
+  const { deps: d } = deps();
+  for (const input of ['hi', '???', '维生素C治感冒']) {
+    await assert.rejects(runCheck(input, { deps: d }), (e) => e instanceof UserError && e.code === 'no_claims', input);
+  }
+});
+
+test('non-web links are rejected and bare web addresses are opened as links', async () => {
+  const { deps: d } = deps();
+  for (const input of ['ftp://example.com/a', 'javascript://x', 'https://']) {
+    await assert.rejects(runCheck(input, { deps: d }), (e) => e.code === 'invalid_link', input);
+  }
+  let fetched;
+  const page = '<html><body><article><p>' + 'Vitamin C may reduce the duration of colds in some adults according to research. '.repeat(10) + '</p></article></body></html>';
+  const { deps: d2 } = deps({ fetchPage: async (url) => { fetched = url; return { finalUrl: url, html: page }; } });
+  const r = await runCheck('www.example.com/colds', { deps: d2 });
+  assert.equal(fetched, 'https://www.example.com/colds');
+  assert.equal(r.kind, 'page');
+});
+
+test('full-width characters and control characters do not hide a claim', async () => {
+  const { deps: d, calls } = deps();
+  await runCheck('ＶＩＴＡＭＩＮ Ｃ cures the cold\u0000', { deps: d });
+  assert.equal(calls.pubmed[0].terms[0], 'vitamin c');
+});

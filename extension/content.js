@@ -23,8 +23,8 @@
   var lastRect = null;
   var token = 0; // bumped on every new check/close so stale responses are ignored
 
-  var LOGO_SVG = '<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M16 8.5v15M8.5 16h15" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg>';
-  var FAB_SVG = '<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle cx="16" cy="16" r="15" fill="#fff"/><path d="M16 9.5v13M9.5 16h13" stroke="#0b5f9a" stroke-width="4" stroke-linecap="round"/></svg>';
+  var LOGO_SVG = '<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><defs><linearGradient id="im-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#30c8ff"/><stop offset="1" stop-color="#5b4ee8"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#im-g)"/><path d="M16 8.5v15M8.5 16h15" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/></svg>';
+  var FAB_SVG = '<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle cx="16" cy="16" r="15" fill="#fff"/><path d="M16 9.5v13M9.5 16h13" stroke="#4f46e5" stroke-width="4" stroke-linecap="round"/></svg>';
 
   function clamp(n, min, max) { return Math.max(min, Math.min(n, max)); }
 
