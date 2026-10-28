@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Infomedics: check health claims against the research</title>
+  <meta name="description" content="Paste a health claim, an AI answer, or a link. Infomedics reads it, searches PubMed and MedlinePlus, and shows what the research says.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%230e5a50'/%3E%3Cpath d='M16 8v16M8 16h16' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="#check" aria-label="Infomedics home">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M16 8.5v15M8.5 16h15" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg>
+        <span class="brand-name">Infomedics</span>
+      </a>
+      <nav aria-label="Main">
+        <ul class="nav">
+          <li><a href="#check" data-nav="check">Check</a></li>
+          <li><a href="#history" data-nav="history">History</a></li>
+          <li><a href="#about" data-nav="about">About</a></li>
+        </ul>
+      </nav>
+      <p id="mode-chip" class="mode-chip" role="status" hidden></p>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- Check -->
+    <section id="view-check" class="view" aria-labelledby="check-heading">
+      <div class="wrap">
+        <div class="hero">
+          <p class="eyebrow">Health claim checker</p>
+          <h1 id="check-heading" tabindex="-1">Is that health claim actually true?</h1>
+          <p class="lead">Paste a claim, a chatbot’s answer, or a link to an article. Infomedics reads it, searches the medical research, and shows you what it found.</p>
+        </div>
+
+        <form id="checker" class="composer card" novalidate>
+          <label for="input" class="composer-label">Claim, AI answer, or link</label>
+          <textarea id="input" name="input" rows="5" maxlength="8000" spellcheck="true"
+            placeholder="e.g. “Drinking apple cider vinegar melts belly fat”, or https://example.com/article"
+            aria-describedby="input-hint input-error"></textarea>
+          <p id="input-error" class="field-error" role="alert" hidden></p>
+          <div class="composer-row">
+            <p id="input-hint" class="hint">Tip: press Ctrl/⌘ + Enter to check.</p>
+            <button type="submit" class="btn btn-primary" id="check-btn">Check it</button>
+          </div>
+          <div class="examples">
+            <p class="examples-label" id="examples-label">Try one:</p>
+            <ul id="examples" class="example-list" aria-labelledby="examples-label"></ul>
+          </div>
+        </form>
+
+        <ol class="how" aria-label="How a check works">
+          <li class="how-step">
+            <span class="how-num" aria-hidden="true">1</span>
+            <h2>Read</h2>
+            <p>Reads your text, or fetches the page behind a link, and picks out the health claims.</p>
+          </li>
+          <li class="how-step">
+            <span class="how-num" aria-hidden="true">2</span>
+            <h2>Search</h2>
+            <p>Looks up systematic reviews and trials on PubMed, and topic pages on MedlinePlus.</p>
+          </li>
+          <li class="how-step">
+            <span class="how-num" aria-hidden="true">3</span>
+            <h2>Weigh</h2>
+            <p>An AI model compares the claim with that evidence and explains the verdict in plain words.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- Progress -->
+    <section id="view-progress" class="view" aria-labelledby="progress-heading" hidden>
+      <div class="wrap narrow">
+        <p class="eyebrow">Checking</p>
+        <h1 id="progress-heading" tabindex="-1">Looking into it…</h1>
+        <blockquote id="progress-input" class="quote"></blockquote>
+        <ol id="progress-steps" class="steps" aria-live="polite"></ol>
+        <button type="button" class="btn btn-quiet" id="cancel-btn">Cancel</button>
+      </div>
+    </section>
+
+    <!-- Result -->
+    <section id="view-result" class="view" aria-label="Result" hidden>
+      <div class="wrap">
+        <div id="result-region" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <!-- History -->
+    <section id="view-history" class="view" aria-labelledby="history-heading" hidden>
+      <div class="wrap narrow">
+        <div class="view-head">
+          <h1 id="history-heading" tabindex="-1">History</h1>
+          <button type="button" id="clear-history" class="btn btn-quiet">Clear history</button>
+        </div>
+        <p class="lead">Checks you ran in this browser. They are stored only on this device.</p>
+        <ul id="history-list" class="history-list"></ul>
+        <div id="history-empty" class="card empty" hidden>
+          <p><strong>No checks yet.</strong></p>
+          <p class="muted">Your checks will appear here.</p>
+          <a class="btn btn-primary" href="#check">Check something</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- About -->
+    <section id="view-about" class="view" aria-labelledby="about-heading" hidden>
+      <div class="wrap narrow prose">
+        <h1 id="about-heading" tabindex="-1">How Infomedics works</h1>
+        <p class="lead">A check takes a few seconds and has four steps. Here is exactly what happens, and what it cannot do.</p>
+
+        <h2>What happens in a check</h2>
+        <ol class="plain-list">
+          <li><strong>Read.</strong> Pasted text is used as written. For a link, our server downloads the page (public pages only, nothing behind a login) and pulls out the article text, author, date and links.</li>
+          <li><strong>Find claims.</strong> Sentences that make a health claim are picked out. Up to three are checked per submission.</li>
+          <li><strong>Search.</strong> We search <a href="https://pubmed.ncbi.nlm.nih.gov" target="_blank" rel="noopener noreferrer">PubMed</a> for systematic reviews, meta-analyses and randomized trials, and <a href="https://medlineplus.gov" target="_blank" rel="noopener noreferrer">MedlinePlus</a> for plain-language topic pages.</li>
+          <li><strong>Weigh.</strong> If an AI model is connected, it compares the claim to the retrieved evidence and writes the verdict. It may only cite the sources we found. Red flags in the wording (miracle language, absolute words, fear tactics) are found by simple rules.</li>
+        </ol>
+
+        <h2>The verdicts</h2>
+        <ul class="verdict-legend" id="verdict-legend"></ul>
+
+        <h2>What it cannot do</h2>
+        <ul class="plain-list">
+          <li><strong>It is not medical advice.</strong> It cannot know your health history. Ask a doctor, nurse or pharmacist about personal decisions.</li>
+          <li><strong>The AI can be wrong.</strong> It sees abstracts, not full papers, and PubMed is not the whole of medicine. Use the links to read the sources yourself.</li>
+          <li><strong>Without an AI model, there are no verdicts.</strong> Infomedics then shows the evidence and red flags and marks the claim “Not rated” instead of guessing.</li>
+          <li><strong>Some pages cannot be read.</strong> Sites that block automated access, need JavaScript, or are PDFs will not work. Paste the text instead.</li>
+          <li>English only for now.</li>
+        </ul>
+
+        <h2>Privacy</h2>
+        <p>Text and links you submit are sent to this Infomedics server. Search terms go to PubMed and MedlinePlus. If an AI model is connected, the claim and the retrieved evidence are sent to the AI provider. Your history stays in this browser’s local storage and you can clear it any time.</p>
+
+        <h2>How to spot health misinformation</h2>
+        <ol class="tips">
+          <li class="card tip"><h3>Check the source</h3><p>Who wrote it? Hospitals, health agencies and universities are good signs. Be careful if the writer is selling something or names no one.</p></li>
+          <li class="card tip"><h3>Beware of miracle cures</h3><p>“Miracle,” “secret,” and “doctors hate this” are warning signs. No single food or pill fixes everything.</p></li>
+          <li class="card tip"><h3>Look for absolute words</h3><p>“Always,” “never,” “100%” and “guaranteed” rarely fit real health. Most advice depends on the person.</p></li>
+          <li class="card tip"><h3>Check the date</h3><p>Health advice changes as research does. Look for a recent date or a note that experts reviewed it.</p></li>
+          <li class="card tip"><h3>Ask a professional</h3><p>For symptoms, medicines, pregnancy or anything urgent, ask a doctor, nurse or pharmacist instead of a search or a chatbot.</p></li>
+        </ol>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <p>Infomedics is a prototype and does not provide medical advice. Talk to a qualified clinician about health decisions. In an emergency, call your local emergency number.</p>
+    </div>
+  </footer>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>

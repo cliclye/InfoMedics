@@ -1,48 +1,95 @@
-# Infomedics (clickable prototype)
+# Infomedics
 
-Infomedics helps people check whether health information, especially AI-generated answers, is trustworthy. This is a **prototype for demos**: every verdict is simulated.
+Check whether a health claim, an AI chatbot's answer, or a web article holds up against the medical research.
+
+Paste text or a link. Infomedics finds the health claims, searches **PubMed** (systematic reviews, meta-analyses, randomized trials) and **MedlinePlus** (plain-language topic pages), and shows what it found. With an AI model connected, it also weighs the claim against that evidence and gives a verdict with an explanation.
+
+> Infomedics is a prototype and does not provide medical advice. Talk to a qualified clinician about health decisions.
 
 ## Run it
 
-No install, no build, no server. Open `index.html` in any modern browser (double-click it, or run `open index.html` on macOS).
+Requires Node 20.12 or newer.
+
+```bash
+npm install
+npm start
+```
+
+Open http://localhost:3000.
+
+### Two modes
+
+| Mode | When | What you get |
+| --- | --- | --- |
+| **AI verdicts** | `ANTHROPIC_API_KEY` is set | A verdict (Supported, Mixed evidence, Unsupported, Needs a doctor, Not enough evidence), a plain-language explanation, a confidence level, and a stance for each source |
+| **Evidence only** | no key | Real PubMed and MedlinePlus results, red flags, page checks, and a keyword hint about each paper's conclusion. Claims are marked **Not rated**; Infomedics does not guess |
+
+To enable verdicts, copy `.env.example` to `.env` and set `ANTHROPIC_API_KEY`. The default model is `claude-opus-5-5`; set `INFOMEDICS_MODEL` to change it. The top-right chip in the app shows which mode is active.
+
+Other optional settings: `NCBI_API_KEY` and `NCBI_EMAIL` (higher PubMed rate limit), `PORT`, `HOST` (default `127.0.0.1`, local only).
+
+## What a check does
+
+1. **Read.** Pasted text is used as written. For a link, the server downloads the page and extracts the article text, author, dates, and outbound links.
+2. **Find claims.** Sentences that make health claims are picked out (up to three).
+3. **Assess the page** (links only): reputation of the domain, named author, date, whether it cites research, and signs of selling or sponsorship.
+4. **Search.** Search terms are built from the claim and sent to PubMed (ranked by study type, relevance, recency; retracted papers dropped) and MedlinePlus (off-topic results filtered out).
+5. **Spot red flags in the wording.** Rule-based: miracle language, absolute words, fear tactics, conspiracy framing, vague authority, anecdotes, no source named.
+6. **Triage.** Emergencies and personal medical decisions (medicines, pregnancy, children, stopping treatment) are always sent to **Needs a doctor**, whatever the AI says.
+7. **Weigh** (AI mode). Claude gets the claim and the retrieved evidence and returns structured JSON. It may only cite the evidence it was given, and the server validates everything before it reaches the page.
+
+Progress streams to the UI as it happens.
+
+## Safety and privacy
+
+- **Link fetching is hardened against SSRF.** Only http/https on ports 80/443; every resolved address is checked at connection time, so localhost, private ranges, cloud metadata addresses, and DNS tricks are refused, including through redirects. Size, time, and redirect limits apply.
+- The server binds to `127.0.0.1` by default, rejects cross-origin POSTs, rate-limits checks per IP, and serves a strict Content-Security-Policy.
+- Page text and abstracts are treated as untrusted data in the AI prompt, and model output is schema-validated.
+- Your API key stays on the server and is never sent to the browser.
+- History is stored only in your browser's local storage.
+- If AI mode is on, the claim and retrieved evidence are sent to Anthropic. Search terms always go to PubMed and MedlinePlus.
+
+## Limits
+
+- It reads abstracts, not full papers, and PubMed is not all of medicine.
+- The AI can be wrong. Use the source links.
+- Sites that block bots, need JavaScript, or serve PDFs can't be read; paste the text instead.
+- English only. Up to three claims per submission.
+- The server calls Claude with the server-side refusal fallback enabled and retries without it if the API rejects that parameter. That path was tested against a fake API, not against the live service, since no key was available during development.
+
+## Tests
+
+```bash
+npm test            # offline: unit, pipeline, HTTP-safety, server, and fake-Anthropic tests
+npm run test:live   # hits the real PubMed, MedlinePlus, and nhs.uk
+```
+
+## Project layout
+
+```
+server.js            HTTP server: static files, /api/status, streamed /api/check
+lib/pipeline.js      read -> claims -> evidence -> judge -> result
+lib/http.js          SSRF-safe page fetch, API fetch
+lib/html.js          HTML to text and metadata
+lib/page.js          page trust signals
+lib/claims.js        claim extraction, search terms, triage
+lib/redflags.js      wording red flags
+lib/pubmed.js        PubMed search, parsing, ranking
+lib/medline.js       MedlinePlus search
+lib/judge.js         Claude verdicts with schema validation
+public/              the web app (index.html, styles.css, app.js)
+extension/           Chrome/Edge extension (see below)
+test/                node:test suites
+```
 
 ## Browser extension
 
-The `extension/` folder is a Chrome/Edge extension that checks text you select on any page. See [extension/README.md](extension/README.md) for install steps.
+`extension/` is a Chrome/Edge extension that checks text you select on any page. It still uses the original **mock** verdict library, not this server; connecting it to `/api/check` is the natural next step. See [extension/README.md](extension/README.md).
 
-## What you can do
+## Ideas for next steps
 
-- **Check:** paste a claim, or click one of the three example chips, then press **Check claim** (or Ctrl/⌘ + Enter). A 1.5-second spinner simulates analysis.
-- **Result card:** verdict badge (Supported, Mixed evidence, Unsupported, Needs a doctor; each with its own color *and* icon), plain-language explanation, red flags, trusted sources, a confidence meter, and a disclaimer.
-- **History:** claims you checked are saved in `localStorage`. Click one to reopen its result, or **Clear history**.
-- **Learn:** five tips for spotting health misinformation.
-
-## Files
-
-| File | Purpose |
-| --- | --- |
-| `index.html` | Page structure; all four screens live here and are toggled by JS |
-| `styles.css` | Styling (responsive, system fonts, focus states) |
-| `data.js` | Mock data: verdict definitions, trusted sources, 9 pre-written claim results, heuristic word lists |
-| `app.js` | UI logic, keyword matching, fallback heuristic, history |
-
-## What is mocked
-
-- **Verdicts.** `data.js` holds 9 pre-written results (including the 3 examples). `app.js` picks one by keyword matching: a claim matches when all terms in any keyword group appear in the input, and the most specific group wins.
-- **Fallback heuristic** when nothing matches: flags absolute/miracle words (`always`, `never`, `cure`, `guaranteed`, `100%`, `miracle`), urgency/fear phrases, and missing sources. If the text mentions symptoms, medication, dosage, pregnancy, or emergencies it returns **Needs a doctor**; otherwise **Mixed evidence** with a generic explanation and Low confidence.
-- **Delay.** The 1.5-second wait is a `setTimeout`, not real work.
-- **Sources.** Links go to the real homepages of WHO, CDC, NIH, Mayo Clinic, and NHS, but the pairing of source to claim is illustrative.
-
-The place to plug in a real service is marked with `REAL API HOOK` in `app.js` (`analyzeClaim`). Return the same result shape and the UI needs no other changes.
-
-## Ideas for a real version
-
-1. **LLM backend with retrieval.** Break a pasted answer into individual claims, retrieve passages from trusted sources (WHO, CDC, NIH, NHS, Cochrane, peer-reviewed journals), and have the model judge each claim only from what it retrieved.
-2. **Citation checking.** Verify every cited source exists and actually supports the sentence it is attached to; show the supporting quote. Drop or flag anything that cannot be verified.
-3. **Human clinician review.** Route high-risk topics (medication, dosage, pregnancy, children, emergencies) to a qualified reviewer, and use reviewed examples to evaluate and improve the system.
-4. **Calibrated confidence.** Base Low/Medium/High on source quality, agreement between sources, and how recent the evidence is, and measure it against reviewed cases.
-5. **Safety and trust.** Clear emergency guidance, multilingual support, reading-level checks, accessibility audits, and privacy-friendly storage of any user input.
-
-## Disclaimer
-
-Infomedics is a prototype and does not provide medical advice. Talk to a qualified clinician about health decisions.
+- Connect the extension to the server.
+- Full-text retrieval and citation verification for the papers behind a verdict.
+- More sources: Cochrane, WHO and CDC pages, clinical guidelines.
+- Human clinician review for high-risk topics, and a reviewed set to measure verdict accuracy.
+- Multilingual support.

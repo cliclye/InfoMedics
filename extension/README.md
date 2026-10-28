@@ -1,6 +1,6 @@
 # Infomedics browser extension (prototype)
 
-Select a health claim on any web page and Infomedics shows a verdict card right next to it. Works in **Chrome** and **Edge** (Manifest V3). Results are **simulated**, exactly like the website prototype.
+Select a health claim on any web page and Infomedics shows a verdict card right next to it. Works in **Chrome** and **Edge** (Manifest V3). Results are **simulated** from a small built-in library.
 
 ## Install (unpacked)
 
@@ -27,16 +27,12 @@ The panel shows the same result card as the website: verdict badge (color and ic
 | `manifest.json` | MV3 manifest; permissions: `contextMenus`, `activeTab`, `scripting`, `storage` |
 | `background.js` | Service worker: right-click menu, runs the analysis, stores history |
 | `analyze.js` | Mock analysis (keyword match + fallback heuristic). **The real-API hook lives here** |
-| `data.js` | Mock claim library, sources, verdict definitions (**copy of `../data.js`**) |
+| `data.js` | Mock claim library, sources, verdict definitions |
 | `content.js` | Selection button and result panel, drawn inside a shadow root so page styles can't interfere |
 | `render.js`, `card.css`, `panel.css` | Result card markup and styles |
 | `popup.html/.css/.js` | Toolbar popup |
 
-`data.js` is duplicated from the website because an extension can only load files inside its own folder. If you edit the website's `data.js`, copy it over:
-
-```bash
-cp ../data.js data.js
-```
+The extension's `data.js` is a self-contained **mock** library (it started as a copy of the website's original demo data). The website itself no longer uses mock data: it runs a real check against PubMed and MedlinePlus (see the root README). Pointing this extension at the website's `/api/check` endpoint is the natural next step.
 
 ## Notes on a real version
 
