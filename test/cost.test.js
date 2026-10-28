@@ -63,7 +63,7 @@ test('the abstract digest keeps results and conclusions and is shorter than the 
 });
 
 const PAPER = { id: 'pm1', kind: 'pubmed', pmid: '1', title: 'Vitamin C and colds', journal: 'J', year: 2020, design: 'Meta-analysis', abstract: 'a', conclusion: 'c', tone: 'unknown', url: 'https://pubmed.ncbi.nlm.nih.gov/1/' };
-const mkDeps = (judge) => ({ aiEnabled: () => true, searchPubMed: async (s) => ({ articles: [PAPER], total: 1, query: s.pubmedQuery }), searchMedlinePlus: async () => [], searchNhs: async () => [], judgeClaim: judge });
+const mkDeps = (judge) => ({ aiEnabled: () => true, searchPubMed: async (s) => ({ articles: [PAPER], total: 1, query: s.pubmedQuery }), searchMedlinePlus: async () => [], searchNhs: async () => [], planSearches: async (c) => ({ plans: c.map(() => null), usage: null }), judgeClaim: judge });
 
 test('emergency wording is answered without an AI call', async () => {
   let calls = 0;

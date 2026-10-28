@@ -3,9 +3,10 @@
 
 import { createWebHandler } from '../../lib/api.js';
 
-// Netlify stops long requests abruptly, so end a check with a clear message a little before that.
+// Streaming functions may run for 60 seconds. A check normally takes 5 to 8; one that hangs on a slow
+// source is ended with a clear message long before the platform would cut it off.
 // Set INFOMEDICS_DEADLINE_MS in the site's environment variables to change it.
-const handler = createWebHandler({ deadlineMs: Number(process.env.INFOMEDICS_DEADLINE_MS) || 9000 });
+const handler = createWebHandler({ deadlineMs: Number(process.env.INFOMEDICS_DEADLINE_MS) || 25000 });
 
 export default (request, context) => handler(request, context);
 

@@ -301,6 +301,10 @@ textarea[aria-invalid="true"] { border-color: var(--unsupported-icon); animation
 .step-icon { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-size: 0.95rem; font-weight: 800; color: var(--btn-ink); background: transparent; transition: background 0.4s, border-color 0.4s; }
 .step-label { font-weight: 600; padding-top: 5px; letter-spacing: -0.01em; }
 .step-detail { color: var(--muted); font-size: 0.93rem; margin: 0; }
+.step-log { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+.step-log:empty { display: none; }
+.step-log li { color: var(--muted); font-size: 0.82rem; line-height: 1.4; padding-left: 14px; position: relative; overflow-wrap: anywhere; animation: rise 0.45s var(--ease) both; }
+.step-log li::before { content: "↳"; position: absolute; left: 0; }
 .step.is-active .step-icon { border-color: color-mix(in srgb, var(--brand) 25%, transparent); border-top-color: var(--brand); animation: spin 0.85s linear infinite; box-shadow: 0 0 22px -2px var(--focus); }
 .step.is-done .step-icon { background: var(--grad); color: var(--btn-ink); border-color: transparent; animation: pop 0.6s var(--spring) both; box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.55); }
 .step.is-pending { opacity: 0.5; }
@@ -369,6 +373,13 @@ textarea[aria-invalid="true"] { border-color: var(--unsupported-icon); animation
 .no-flags { color: var(--supported-fg); font-weight: 600; background: var(--supported-bg); border: 1px solid var(--supported-line); border-radius: 16px; padding: 12px 16px; margin: 0; }
 
 .ev-summary { color: var(--muted); font-size: 0.93rem; margin-bottom: 14px; }
+.search-log { margin-top: 14px; font-size: 0.92rem; }
+.search-log > summary { cursor: pointer; color: var(--muted); font-weight: 600; min-height: 32px; display: flex; align-items: center; }
+.search-log > ul { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 8px; }
+.search-log li { display: grid; gap: 3px; }
+.search-where { font-weight: 600; }
+.search-found { color: var(--muted); font-size: 0.88rem; }
+.search-log .ev-list { margin-top: 10px; }
 .ev-list { display: grid; gap: 12px; }
 .ev { padding: 18px 20px; }
 .ev-meta { display: flex; gap: 6px 12px; flex-wrap: wrap; align-items: center; font-size: 0.84rem; color: var(--muted); margin-bottom: 8px; }

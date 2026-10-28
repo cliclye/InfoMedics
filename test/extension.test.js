@@ -17,6 +17,7 @@ const DEPS = {
   searchPubMed: async (s) => ({ articles: [PAPER], total: 18, query: s.pubmedQuery }),
   searchMedlinePlus: async () => [TOPIC],
   searchNhs: async () => [],
+  planSearches: async (c) => ({ plans: c.map(() => null), usage: null }),
   judgeClaim: async () => ({ verdict: 'unsupported', explanation: 'Reviews found no benefit for preventing colds.', confidence: { level: 'High', note: 'Reviews agree.' }, redFlags: [], evidenceNotes: [{ id: 'pm1', stance: 'contradicts', note: 'No effect.' }], model: 'claude-opus-5-5' })
 };
 

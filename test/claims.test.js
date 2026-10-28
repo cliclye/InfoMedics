@@ -82,3 +82,20 @@ test('general claims that mention an emergency are not emergencies; someone in t
   assert.equal(triage('My dad is choking right now').emergency, true);
   assert.equal(triage('I can\'t breathe').emergency, true);
 });
+
+test('advice to see a clinician is not picked as a claim', () => {
+  const text = 'Great question! Turmeric can replace ibuprofen for joint pain. Green tea boosts metabolism and helps burn belly fat. Taking vitamin D every day prevents depression in adults. Always check with your doctor before starting supplements.';
+  const claims = extractClaims(text).map((c) => c.text);
+  assert.equal(claims.length, 3);
+  assert.ok(claims.some((c) => /vitamin D/.test(c)));
+  assert.ok(!claims.some((c) => /check with your doctor/.test(c)));
+});
+
+test('two sentences that each make a full claim are checked separately', () => {
+  assert.deepEqual(extractClaims('Coffee stunts your growth. Garlic lowers cholesterol and protects your heart.').map((c) => c.text),
+    ['Coffee stunts your growth.', 'Garlic lowers cholesterol and protects your heart.']);
+  assert.equal(extractClaims('Garlic lowers cholesterol. It also protects your heart.').length, 1);
+  assert.equal(extractClaims('Is it safe to take ibuprofen while pregnant? I have a bad headache.').length, 1);
+  assert.equal(extractClaims('My aunt swears by this. Apple cider vinegar melts belly fat in a week.').length, 1);
+  assert.equal(extractClaims('Vitamin C cures the common cold.').length, 1);
+});

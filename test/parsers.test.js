@@ -87,3 +87,11 @@ test('parseArticles marks MEDLINE-indexed papers and drops preprints and opinion
   const out = parseArticles(xml);
   assert.deepEqual(out.map((a) => [a.pmid, a.indexed]), [['1', true], ['2', false], ['3', true]]);
 });
+
+test('publisher copyright lines and citations are dropped from abstracts', async () => {
+  const { cleanAbstractText } = await import('../lib/pubmed.js');
+  assert.equal(cleanAbstractText('Observational studies fail to show an association. Clin. Anat. 31:942-945, 2018. © 2018 Wiley Periodicals, Inc.'), 'Observational studies fail to show an association.');
+  assert.equal(cleanAbstractText('31:942-945, 2018. © 2018 Wiley Periodicals, Inc.'), '');
+  assert.equal(cleanAbstractText('Copyright © 2020 Elsevier Ltd. All rights reserved.'), '');
+  assert.equal(cleanAbstractText('Doses of 2:1 ratio were used in 2019 trials.'), 'Doses of 2:1 ratio were used in 2019 trials.');
+});

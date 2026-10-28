@@ -108,7 +108,7 @@
 
     // Cited sources first (all of them), then the best of the rest.
     var cited = c.evidence.filter(function (e) { return e.cited; }).sort(function (a, b) { return a.cited - b.cited; });
-    var rest = c.evidence.filter(function (e) { return !e.cited; }).slice(0, Math.max(0, 4 - cited.length));
+    var rest = c.evidence.filter(function (e) { return !e.cited && e.stance !== 'unrelated'; }).slice(0, Math.max(0, 4 - cited.length));
     var shown = cited.concat(rest);
     var label = cited.length ? 'Sources (' + cited.length + ' cited, ' + c.evidence.length + ' found)' : 'Sources found (' + c.evidence.length + ')';
     var evidence = shown.length

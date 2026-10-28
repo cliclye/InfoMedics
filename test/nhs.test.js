@@ -49,3 +49,18 @@ test('searchNhs falls back to the search snippet when a page cannot be read', as
   });
   assert.equal(out[0].summary, 'Colds are very common.');
 });
+
+test('searchNhs searches several topics, merges results and still works when one search fails', async () => {
+  const asked = [];
+  const out = await searchNhs(['knuckle cracking', 'arthritis'], {
+    terms: ['arthritis'],
+    getHtml: async (url) => {
+      asked.push(new URL(url).searchParams.get('q'));
+      if (url.includes('knuckle')) throw new Error('down');
+      return '<a class="app-search-results-item" href="/conditions/arthritis/">Arthritis</a><p>Joint pain.</p>';
+    },
+    read: async () => { throw new Error('no page'); }
+  });
+  assert.deepEqual(asked.sort(), ['arthritis', 'knuckle cracking']);
+  assert.deepEqual(out.map((p) => p.title), ['Arthritis']);
+});

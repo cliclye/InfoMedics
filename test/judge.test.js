@@ -188,3 +188,9 @@ test('a repeated claim with the same sources is answered from the cache with no 
   assert.equal(second.usage.cached, true);
   assert.equal(second.verdict, first.verdict);
 });
+
+test('off-topic ids become "unrelated" notes, but never for evidence the explanation cites', () => {
+  const out = normalizeJudgement({ ...GOOD, cited_ids: undefined, explanation: 'Reviews found no benefit for preventing colds [pm1].', evidence_notes: [], off_topic_ids: ['mp1', 'pm1', 'nope'] }, new Set(['pm1', 'mp1']));
+  assert.deepEqual(out.evidenceNotes, [{ id: 'mp1', stance: 'unrelated', note: '' }]);
+  assert.deepEqual(out.citations, ['pm1']);
+});

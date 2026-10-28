@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Infomedics: check health claims against the research</title>
-  <meta name="description" content="Paste a health claim, an AI answer, or a link. Infomedics reads it, searches PubMed and MedlinePlus, and shows what the research says.">
+  <meta name="description" content="Paste a health claim, an AI answer, or a link. Infomedics reads it, searches PubMed, MedlinePlus and the NHS website, and shows what the research says.">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#f1f1f2" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#060607" media="(prefers-color-scheme: dark)">
@@ -69,7 +69,7 @@
           <li class="how-step glass">
             <span class="how-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15 15l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
             <h2>Search</h2>
-            <p>Looks up systematic reviews and trials on PubMed, and topic pages on MedlinePlus.</p>
+            <p>Turns the claim into the terms researchers use, then searches PubMed, MedlinePlus and the NHS website.</p>
           </li>
           <li class="how-step glass">
             <span class="how-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M12 4v16M6 20h12M5 8h14M5 8l-2.5 6a3 3 0 0 0 5 0zM19 8l-2.5 6a3 3 0 0 0 5 0z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
@@ -128,7 +128,7 @@
         <ol class="plain-list glass panel">
           <li><strong>Read.</strong> Pasted text is used as written. For a link, our server downloads the page (public pages only, nothing behind a login) and pulls out the article text, author, date and links.</li>
           <li><strong>Find claims.</strong> Sentences that make a health claim are picked out. Up to three are checked per submission.</li>
-          <li><strong>Search.</strong> We search <a href="https://pubmed.ncbi.nlm.nih.gov" target="_blank" rel="noopener noreferrer">PubMed</a> for systematic reviews, meta-analyses and randomized trials, and <a href="https://medlineplus.gov" target="_blank" rel="noopener noreferrer">MedlinePlus</a> for plain-language topic pages.</li>
+          <li><strong>Search.</strong> With AI on, the claim is first turned into the terms researchers use, with synonyms (“cracking your knuckles” becomes knuckle cracking or joint cavitation, and osteoarthritis). We then search <a href="https://pubmed.ncbi.nlm.nih.gov" target="_blank" rel="noopener noreferrer">PubMed</a> for systematic reviews, meta-analyses and randomized trials, and other studies when no review exists; <a href="https://medlineplus.gov" target="_blank" rel="noopener noreferrer">MedlinePlus</a> for plain-language topic pages; and the <a href="https://www.nhs.uk" target="_blank" rel="noopener noreferrer">NHS website</a>, whose pages are opened and read. Papers that do not mention both what the claim is about and the effect it claims are dropped. Every result shows exactly what was searched.</li>
           <li><strong>Weigh.</strong> If an AI model is connected, it compares the claim to the retrieved evidence and writes the verdict. It may only cite the sources we found. Red flags in the wording (miracle language, absolute words, fear tactics) are found by simple rules.</li>
         </ol>
 
@@ -145,7 +145,7 @@
         </ul>
 
         <h2>Privacy</h2>
-        <p class="glass panel">Text and links you submit are sent to this Infomedics server. Search terms go to PubMed and MedlinePlus. If an AI model is connected, the claim and the retrieved evidence are sent to the AI provider. Your history stays in this browser’s local storage and you can clear it any time.</p>
+        <p class="glass panel">Text and links you submit are sent to this Infomedics server. Search terms go to PubMed, MedlinePlus and the NHS website. If an AI model is connected, the claim and the retrieved evidence are sent to the AI provider. Your history stays in this browser’s local storage and you can clear it any time.</p>
 
         <h2>How to spot health misinformation</h2>
         <ol class="tips">

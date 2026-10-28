@@ -19,6 +19,8 @@ function deps(overrides = {}) {
       searchPubMed: async (s) => { calls.pubmed.push(s); return { articles: [ARTICLE('pm1'), ARTICLE('pm2')], total: 18, query: s.pubmedQuery, filtered: true }; },
       searchMedlinePlus: async (q) => { calls.medline.push(q); return [TOPIC]; },
       searchNhs: async () => [],
+      // No plan by default, so the claim's own keywords are searched; the planner has its own tests.
+      planSearches: async (claims) => ({ plans: claims.map(() => null), usage: null }),
       judgeClaim: async (args) => {
         calls.judge.push(args);
         return { verdict: 'unsupported', explanation: 'Reviews found no benefit for preventing colds.', confidence: { level: 'High', note: 'Reviews agree.' }, redFlags: ['Overclaims.'], evidenceNotes: [{ id: 'pm1', stance: 'contradicts', note: 'No effect.' }], model: 'claude-opus-5-5' };
@@ -52,7 +54,7 @@ test('AI mode: rated result with evidence, notes, merged red flags, steps, and r
   assert.equal(calls.judge[0].evidence.length, 3);
 
   const plan = events.find((e) => e.type === 'plan');
-  assert.deepEqual(plan.steps.map((s) => s.id), ['claims', 'evidence', 'judge']);
+  assert.deepEqual(plan.steps.map((s) => s.id), ['claims', 'plan', 'evidence', 'judge']);
   assert.ok(events.some((e) => e.type === 'step' && e.id === 'judge' && e.status === 'done'));
 });
 
@@ -125,7 +127,7 @@ test('a link is fetched, assessed, and its claims are checked', async () => {
   assert.equal(r.page.host, 'blog.example.com');
   assert.equal(r.page.author, 'A. Writer');
   assert.ok(r.claims.length >= 1);
-  assert.deepEqual(events.find((e) => e.type === 'plan').steps.map((s) => s.id), ['read', 'claims', 'evidence', 'judge']);
+  assert.deepEqual(events.find((e) => e.type === 'plan').steps.map((s) => s.id), ['read', 'claims', 'plan', 'evidence', 'judge']);
   // Page claims are not flagged for "no source" (the page is assessed separately).
   assert.ok(!r.claims[0].redFlags.some((f) => f.type === 'no_source'));
 });
@@ -224,4 +226,25 @@ test('a failing NHS search is a warning, not a failure', async () => {
   const r = await runCheck('Vitamin C cures the common cold', { deps: d });
   assert.ok(r.claims[0].warnings.some((w) => /NHS/.test(w)));
   assert.ok(r.claims[0].evidence.length > 0);
+});
+
+test('a search plan replaces the claim\'s keywords, its topics are searched, and the search is logged', async () => {
+  const { deps: d, calls } = deps({
+    planSearches: async (claims) => ({ plans: claims.map(() => ({ concepts: [['knuckle cracking', 'joint cracking'], ['osteoarthritis']], topics: ['osteoarthritis', 'joint pain'] })), usage: { inputTokens: 300, outputTokens: 60 } }),
+    searchPubMed: async (s) => { calls.pubmed.push(s); return { articles: [ARTICLE('pm9', 'Study')], total: 7, query: s.pubmedQuery, filtered: false, log: [{ source: 'PubMed', query: s.pubmedQuery, scope: 'all studies', hits: 7, kept: 1 }] }; },
+    searchMedlinePlus: async (q) => { calls.medline.push(q); return q === 'osteoarthritis' ? [{ ...TOPIC, title: 'Osteoarthritis', url: 'https://medlineplus.gov/osteoarthritis.html' }] : []; }
+  });
+  const { events, emit } = collect();
+  const r = await runCheck('Cracking your knuckles causes arthritis', { deps: d, emit });
+  assert.equal(calls.pubmed[0].pubmedQuery, '("knuckle cracking" OR "joint cracking") AND osteoarthritis');
+  assert.deepEqual(calls.medline, ['osteoarthritis', 'joint pain']);
+  const c = r.claims[0];
+  assert.deepEqual(c.searchPlan.topics, ['osteoarthritis', 'joint pain']);
+  assert.equal(c.evidence.find((e) => e.kind === 'medlineplus').title, 'Osteoarthritis');
+  assert.ok(c.searches.some((e) => e.source === 'PubMed' && e.hits === 7));
+  assert.ok(events.some((e) => e.type === 'log' && /PubMed \(all studies\)/.test(e.text)));
+  assert.ok(events.some((e) => e.type === 'step' && e.id === 'plan' && e.status === 'done' && /knuckle cracking \+ osteoarthritis/.test(e.detail)));
+  // The planner's tokens are part of the check's cost.
+  assert.equal(r.usage.calls, 1);
+  assert.equal(r.usage.inputTokens, 300);
 });

@@ -49,3 +49,13 @@ test('live: private and local links are refused', { skip: !live }, async () => {
     await assert.rejects(runCheck(url), (e) => e.code === 'fetch_blocked', url);
   }
 });
+
+test('live: a planned search finds the knuckle-cracking studies that keyword search misses, and nothing off topic', { skip: !live, timeout: 60_000 }, async () => {
+  const { searchPubMed } = await import('../lib/pubmed.js');
+  const { searchFromPlan } = await import('../lib/claims.js');
+  const r = await searchPubMed(searchFromPlan({ concepts: [['knuckle cracking', 'joint cracking'], ['osteoarthritis', 'arthritis']], topics: ['arthritis'] }));
+  assert.ok(r.articles.length >= 2, 'expected at least two studies, got ' + r.articles.length);
+  assert.ok(r.articles.every((a) => /knuckle|joint crack/i.test(a.title + a.abstract)));
+  assert.ok(r.articles.some((a) => a.pmid === '21383216'), 'expected "Knuckle cracking and hand osteoarthritis" (2011)');
+  assert.ok(r.log.some((e) => e.scope === 'all studies' && e.kept > 0), 'no reviews exist, so other study types must be searched');
+});

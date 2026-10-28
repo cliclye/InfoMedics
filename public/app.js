@@ -181,10 +181,30 @@ function evidenceItem(e, idx) {
     ${e.conclusion ? `<p class="ev-note"><span class="label">Authors’ conclusion:</span> ${esc(e.conclusion)}</p>` : ''}${foot}</li>`;
 }
 
+// What was actually searched, so a reader can see the work and repeat it.
+function searchesBlock(c) {
+  const rows = (c.searches || []).map((e) => {
+    const where = e.source === 'PubMed' ? `PubMed, ${esc(e.scope || 'all studies')}` : esc(e.source);
+    const found = e.source === 'NHS website'
+      ? `${e.read} page${e.read === 1 ? '' : 's'} read`
+      : e.source === 'PubMed'
+        ? `${Number(e.hits || 0).toLocaleString('en-US')} found, ${e.kept} on topic`
+        : `${e.kept} matching topic${e.kept === 1 ? '' : 's'}`;
+    return `<li><span class="search-where">${where}</span><code>${esc(e.query)}</code><span class="search-found">${found}</span></li>`;
+  }).join('');
+  if (!rows) return '';
+  const plan = c.searchPlan
+    ? `<p class="muted">The AI first turned the claim into the terms researchers use: ${c.searchPlan.concepts.map((g) => `<strong>${esc(g[0])}</strong>`).join(' and ')}, with synonyms. Each paper was then checked to make sure it is about both.</p>`
+    : '<p class="muted">Searched with the claim’s own key words.</p>';
+  return `<details class="search-log"><summary>How we searched</summary>${plan}<ul>${rows}</ul></details>`;
+}
+
 function evidenceBlock(c, { idx = 0, collapsible = false } = {}) {
   const s = c.evidenceSummary || {};
   const cited = c.evidence.filter((e) => e.cited).sort((a, b) => a.cited - b.cited);
-  const others = c.evidence.filter((e) => !e.cited);
+  // Sources the AI judged to be about something else stay visible, but out of the way.
+  const offTopic = c.evidence.filter((e) => !e.cited && e.stance === 'unrelated');
+  const others = c.evidence.filter((e) => !e.cited && e.stance !== 'unrelated');
   const papers = c.evidence.filter((e) => e.kind === 'pubmed');
   const searched = `Searched PubMed${s.query ? ` for <code>${esc(s.query)}</code>` : ''}, MedlinePlus and the NHS website. Every source below comes from one of those three, and each is labelled with why it counts.`;
   let inner = '';
@@ -194,8 +214,11 @@ function evidenceBlock(c, { idx = 0, collapsible = false } = {}) {
     inner += `<p class="ev-summary">${searched}${papers.length ? ` Top ${papers.length} of ${Number(s.pubmedTotal || papers.length).toLocaleString('en-US')} matching PubMed result${s.pubmedTotal === 1 ? '' : 's'}, ranked by study type, relevance and recency.` : ''}</p>`;
     if (cited.length) inner += `<h3 class="sub-h">Cited in this verdict</h3><ul class="ev-list">${cited.map((e) => evidenceItem(e, idx)).join('')}</ul>`;
     if (others.length) inner += `<h3 class="sub-h">${cited.length ? 'Also found, not cited' : 'Found'}</h3><ul class="ev-list">${others.map((e) => evidenceItem(e, idx)).join('')}</ul>`;
+    if (offTopic.length) inner += `<details class="search-log"><summary>Set aside as not about this claim (${offTopic.length})</summary><ul class="ev-list">${offTopic.map((e) => evidenceItem(e, idx)).join('')}</ul></details>`;
   }
-  const title = c.rated && cited.length ? `Sources (${cited.length} cited, ${c.evidence.length} found)` : `Sources found (${c.evidence.length})`;
+  inner += searchesBlock(c);
+  const useful = c.evidence.length - offTopic.length;
+  const title = c.rated && cited.length ? `Sources (${cited.length} cited, ${useful} relevant)` : `Sources found (${useful})`;
   return collapsible
     ? `<details class="block"><summary><strong>${esc(title)}</strong></summary>${inner}</details>`
     : `<section class="block"><h2>${esc(title)}</h2>${inner}</section>`;
@@ -340,7 +363,7 @@ function setProgress(fraction) { progressBar.style.setProperty('--p', String(Mat
 function renderPlan(steps) {
   setProgress(0.06);
   $('#progress-steps').innerHTML = steps.map((s) =>
-    `<li class="step is-pending" data-step="${esc(s.id)}"><span class="step-icon" aria-hidden="true"></span><div><div class="step-label">${esc(s.label)}</div><p class="step-detail"></p></div></li>`).join('');
+    `<li class="step is-pending" data-step="${esc(s.id)}"><span class="step-icon" aria-hidden="true"></span><div><div class="step-label">${esc(s.label)}</div><p class="step-detail"></p><ul class="step-log"></ul></div></li>`).join('');
 }
 function updateStep({ id, status: state, detail }) {
   const el = $(`[data-step="${CSS.escape(id)}"]`);
@@ -352,6 +375,15 @@ function updateStep({ id, status: state, detail }) {
   const all = document.querySelectorAll('#progress-steps .step').length || 1;
   const done = document.querySelectorAll('#progress-steps .is-done').length;
   setProgress((done + (state === 'done' ? 0 : 0.5)) / all);
+}
+
+// Each real search, as it comes back, under the step that ran it.
+function addLog({ step, text }) {
+  const list = $(`[data-step="${CSS.escape(step)}"] .step-log`);
+  if (!list || list.children.length >= 12) return;
+  const li = document.createElement('li');
+  li.textContent = text;
+  list.append(li);
 }
 
 // ---------- Talking to the server ----------
@@ -422,6 +454,7 @@ async function submit() {
     await streamCheck(text, controller.signal, (event) => {
       if (event.type === 'plan') renderPlan(event.steps);
       else if (event.type === 'step') updateStep(event);
+      else if (event.type === 'log') addLog(event);
       else if (event.type === 'result') result = event.result;
       else if (event.type === 'error') failure = event.message;
     });

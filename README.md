@@ -21,12 +21,12 @@ Open http://localhost:3000.
 
 | Mode | When | What you get |
 | --- | --- | --- |
-| **AI verdicts** | `ANTHROPIC_API_KEY` is set | A verdict (Supported, Mixed evidence, Unsupported, Needs a doctor, Not enough evidence), a plain-language explanation, a confidence level, and a stance for each source |
-| **Evidence only** | no key | Real PubMed and MedlinePlus results, red flags, page checks, and a keyword hint about each paper's conclusion. Claims are marked **Not rated**; Infomedics does not guess |
+| **AI verdicts** | `ANTHROPIC_API_KEY` is set | AI-planned searches (the claim is turned into the terms researchers use) and a verdict (Supported, Mixed evidence, Unsupported, Needs a doctor, Not enough evidence), a plain-language explanation, a confidence level, and a stance for each source |
+| **Evidence only** | no key | Real PubMed, MedlinePlus and NHS results found with the claim's own keywords, red flags, page checks, and a keyword hint about each paper's conclusion. Claims are marked **Not rated**; Infomedics does not guess |
 
 To enable verdicts, copy `.env.example` to `.env` and set `ANTHROPIC_API_KEY`. The default model is `claude-haiku-5-5` at the lowest effort (`low`), which is fast and cheap; set `INFOMEDICS_MODEL` and `INFOMEDICS_EFFORT` to change them. The top-right chip in the app shows which mode is active.
 
-Other optional settings: `NCBI_API_KEY` and `NCBI_EMAIL` (higher PubMed rate limit), `PORT`, `HOST` (default `127.0.0.1`, local only), `INFOMEDICS_ALLOWED_ORIGINS` (extra origins allowed to call the API, comma-separated).
+Other optional settings: `INFOMEDICS_PLANNER_MODEL` (the model that plans searches, default `claude-haiku-5-5`), `NCBI_API_KEY` and `NCBI_EMAIL` (higher PubMed rate limit; recommended for anything shared, see below), `PORT`, `HOST` (default `127.0.0.1`, local only), `INFOMEDICS_ALLOWED_ORIGINS` (extra origins allowed to call the API, comma-separated).
 
 ## Deploy on Netlify
 
@@ -34,11 +34,11 @@ The repo is ready to deploy as is. `netlify.toml` publishes `public/` as the sit
 
 1. In Netlify, import the GitHub repo. No build command is needed; the publish directory (`public`) and functions directory come from `netlify.toml`.
 2. Optional: add `ANTHROPIC_API_KEY` under Site configuration, Environment variables to turn on AI verdicts. Without it the site runs in evidence-only mode.
-3. Optional: `NCBI_API_KEY` and `NCBI_EMAIL` (higher PubMed rate limit), `INFOMEDICS_DEADLINE_MS` (default 9000).
+3. Recommended: `NCBI_API_KEY` and `NCBI_EMAIL` (free from your NCBI account). Without a key PubMed allows 3 requests a second, and a pasted answer with three claims makes about ten, which adds several seconds. Optional: `INFOMEDICS_DEADLINE_MS` (default 25000).
 
 Things to know:
 
-- **Time limit.** Netlify stops long functions (streaming ones are documented at 10 seconds, though plans and settings vary). A check is stopped after `INFOMEDICS_DEADLINE_MS` and shows a "took too long" message instead of hanging. If checks of long pages time out, raise it together with the limit in your Netlify plan.
+- **Time limit.** `/api/check` streams its response, and Netlify gives streaming functions 60 seconds. A one-claim check takes about 5 to 8 seconds, and a three-claim page about 10 to 12 without an NCBI key. A check is stopped after `INFOMEDICS_DEADLINE_MS` (25 seconds) with a "took too long" message, so a hung source never leaves the page spinning.
 - **Rate limit.** The per-address limit lives in each function instance's memory, so it is best effort. With an API key set, anyone who finds the site can spend your Anthropic credits; put a spending limit on the key, or leave AI off.
 - **Extension.** Open the extension popup, Settings, and set the server address to your Netlify URL.
 - Run `npx netlify dev` to try the same setup locally.
@@ -48,25 +48,28 @@ Things to know:
 1. **Read.** Pasted text is used as written. For a link, the server downloads the page and extracts the article text, author, dates, and outbound links.
 2. **Find claims.** Sentences that make health claims are picked out (up to three).
 3. **Assess the page** (links only): reputation of the domain, named author, date, whether it cites research, and signs of selling or sponsorship.
-4. **Search and read.** Search terms are built from the claim and sent to three credible places, and the pages found are actually opened and read:
-   - **PubMed**: systematic reviews, meta-analyses and randomized trials, ranked by study type, relevance and recency. Retracted papers, preprints, editorials and letters are dropped, and papers from journals that NLM's MEDLINE does not index rank lower and are labelled.
-   - **MedlinePlus**: plain-language topics from the US National Library of Medicine (off-topic results filtered out).
-   - **The NHS website**: its site search is queried and the top matching pages are fetched and read.
-   Nothing else is searched, so every source is from a short list of credible places, and each one is labelled with why it counts (government health agency, peer-reviewed and MEDLINE-indexed, or journal article that is not).
-5. **Spot red flags in the wording.** Rule-based: miracle language, absolute words, fear tactics, conspiracy framing, vague authority, anecdotes, no source named.
-6. **Triage.** Emergencies and personal medical decisions (medicines, pregnancy, children, stopping treatment) are always sent to **Needs a doctor**, whatever the AI says.
-7. **Weigh** (AI mode). Claude gets the claim and the retrieved evidence and returns structured JSON. It may only cite the evidence it was given. Its explanation carries numbered citations such as [1]; the server checks that each number points at a real source it retrieved and drops any that do not. The page then shows **Cited in this verdict** (numbered, one click from the sentence that uses it) separately from **Also found, not cited**, each with its real address and which search found it.
+4. **Plan the search** (AI mode). One small call (Claude Haiku 5.5, thinking off, about 80 output tokens a claim) turns each claim into the concepts a relevant study must mention, with the synonyms researchers use, plus the names of health-agency pages to look for. "Cracking your knuckles causes arthritis" becomes `("knuckle cracking" OR "joint cracking" OR "joint cavitation") AND (osteoarthritis OR arthritis)`, where keyword search had looked for "cracking" and found papers on cracked teeth. Plans are cached for a week. Without AI, or if the call fails, the claim's own keywords are used.
+5. **Search and read.** The search goes to three credible places, and the pages found are actually opened and read:
+   - **PubMed**: reviews and trials and all study types are searched together (when no review exists, observational studies are the best evidence there is), and the results are fetched in one request. Papers are ranked by study type, relevance and recency. Retracted papers, preprints, editorials and letters are dropped, and papers from journals that NLM's MEDLINE does not index rank lower and are labelled. A paper is kept only if its title or abstract mentions both what the claim is about and the effect it claims, because PubMed's matching is loose ("growth" also finds hair-growth studies). Duplicate versions of one review are merged.
+   - **MedlinePlus**: plain-language topics from the US National Library of Medicine, searched for each planned topic (off-topic results filtered out).
+   - **The NHS website**: its site search is queried for each planned topic and the top matching pages are fetched and read.
+   Nothing else is searched, so every source is from a short list of credible places, and each one is labelled with why it counts. Each result has a **How we searched** panel with every query, how many results it returned and how many were kept, and the progress view shows the searches as they come back.
+6. **Spot red flags in the wording.** Rule-based: miracle language, absolute words, fear tactics, conspiracy framing, vague authority, anecdotes, no source named.
+7. **Triage.** Emergencies and personal medical decisions (medicines, pregnancy, children, stopping treatment) are always sent to **Needs a doctor**, whatever the AI says.
+8. **Weigh** (AI mode). Claude gets the claim and the retrieved evidence and returns structured JSON, writing its explanation before it picks the verdict so the two agree. It may only cite the evidence it was given, and lists any evidence that turned out to be about something else; that evidence is shown under **Set aside as not about this claim** instead of among the sources. Its explanation carries numbered citations such as [1]; the server checks that each number points at a real source it retrieved and drops any that do not. The page then shows **Cited in this verdict** (numbered, one click from the sentence that uses it) separately from **Also found, not cited**, each with its real address and which search found it.
 
 Progress streams to the UI as it happens.
 
 ## What it costs to run
 
-AI verdicts use Claude Haiku 5.5 at the lowest effort ($0.10 per million input tokens, $0.50 per million output tokens). Measured against the real API, one claim costs **about $0.0005 to $0.0007**, so roughly 1,500 checks per dollar. Each result shows the tokens used and the estimated cost.
+AI verdicts use Claude Haiku 5.5 at the lowest effort ($0.10 per million input tokens, $0.50 per million output tokens). Measured against the real API on 33 test claims, one claim costs **about $0.0006** including the search-planning call, so roughly 1,600 claims per dollar. Each result shows the tokens used and the estimated cost.
 
 What keeps it low without hurting accuracy:
 
-- **Smaller prompts.** Each paper is sent as a digest (aim, key methods, results, conclusion) instead of the whole abstract, at most 4 papers plus 2 health-agency pages per claim, and agency text is trimmed to what a judge needs.
-- **Small answers.** Output costs five times as much as input, so the model is asked for 2 to 3 sentences, notes of at most 12 words and only for sources it cites, and replies are capped at 2,500 tokens.
+- **Only relevant evidence is sent.** Off-topic papers are filtered out before the AI sees them, at most 4 papers and 3 health-agency pages go in per claim, and each paper is sent as a digest (aim, key methods, results, conclusion) with publisher copyright lines removed.
+- **Small answers.** Output costs five times as much as input, so the model writes 2 to 3 sentences, notes of at most 12 words only for sources it cites, and lists off-topic sources by id alone. Replies are capped at 2,500 tokens.
+- **Cheap planning.** Search planning runs with thinking off, plans every claim in a submission in one call, and is cached for a week.
+- **Low effort, on purpose.** Tested against `medium` on the hardest claims, `medium` spent 2 to 3 times the output tokens and 4 to 5 seconds longer without a consistent accuracy gain, so `low` stays the default.
 - **Prompt caching.** The fixed instructions and schema (about 1,500 tokens) are cached, and cache reads cost a tenth of normal input.
 - **Repeat checks are free.** A claim checked again against the same sources is answered from a saved result for 24 hours, with no API call.
 - **No call when none is needed.** Emergency wording goes straight to "call emergency services" without the model.
@@ -105,14 +108,16 @@ npm run test:live   # hits the real PubMed, MedlinePlus, and nhs.uk
 server.js            HTTP server: static files, /api/status, streamed /api/check
 netlify/functions/  the same API as a Netlify Function (see Deploy on Netlify)
 lib/api.js          headers, origin rules, rate limit and the Web handler shared by both
-lib/pipeline.js      read -> claims -> evidence -> judge -> result
+lib/pipeline.js      read -> claims -> plan -> evidence -> judge -> result
 lib/http.js          SSRF-safe page fetch, API fetch
 lib/html.js          HTML to text and metadata
 lib/page.js          page trust signals
 lib/claims.js        claim extraction, search terms, triage
 lib/redflags.js      wording red flags
-lib/pubmed.js        PubMed search, parsing, ranking
+lib/planner.js       Claude turns claims into researcher search terms
+lib/pubmed.js        PubMed search, parsing, relevance filter, ranking
 lib/medline.js       MedlinePlus search
+lib/nhs.js           NHS website search and page reading
 lib/judge.js         Claude verdicts with schema validation
 public/              the web app (index.html, styles.css, app.js)
 extension/           Chrome/Edge extension that uses the server (see below)
