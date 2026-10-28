@@ -8,54 +8,72 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="banner" role="note"><strong>Prototype:</strong> results are simulated.</div>
-
   <header class="head">
     <span class="logo">
       <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M16 8.5v15M8.5 16h15" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg>
-      <span><span class="a">Info</span><span class="b">medics</span></span>
+      <span>Infomedics</span>
     </span>
     <nav aria-label="Popup">
       <button type="button" class="tab" data-view="check" aria-current="page">Check</button>
       <button type="button" class="tab" data-view="history">History</button>
+      <button type="button" class="tab" data-view="settings">Settings</button>
     </nav>
   </header>
+  <p id="status" class="status" role="status"><span class="dot" aria-hidden="true"></span><span id="status-text">Connecting…</span></p>
 
   <main>
     <section id="view-check">
       <form id="form" novalidate>
-        <label for="claim" class="label">Paste a health claim or AI answer here.</label>
-        <textarea id="claim" rows="5" maxlength="2000" aria-describedby="err"
+        <label for="claim" class="label">Claim, AI answer, or link</label>
+        <textarea id="claim" rows="5" maxlength="8000" aria-describedby="err"
           placeholder="Tip: select text on any page, then click the Infomedics button that appears."></textarea>
         <p id="err" class="err" role="alert" hidden></p>
         <div class="row">
-          <button type="submit" id="go" class="btn primary">Check claim</button>
-          <p id="loading" class="loading" role="status" hidden><span class="spinner" aria-hidden="true"></span><span>Checking…</span></p>
+          <button type="submit" id="go" class="btn primary">Check it</button>
         </div>
-        <p class="ex-label" id="ex-label">Or try an example:</p>
+        <p class="ex-label" id="ex-label">Try one:</p>
         <ul id="examples" class="chips" aria-labelledby="ex-label"></ul>
       </form>
+    </section>
+
+    <section id="view-progress" hidden aria-label="Checking">
+      <p class="progress-title" id="progress-title" tabindex="-1">Checking…</p>
+      <ol id="steps" class="steps"></ol>
+      <button type="button" class="btn quiet" id="cancel">Cancel</button>
     </section>
 
     <section id="view-result" hidden aria-label="Result">
       <div id="result" aria-live="polite" tabindex="-1"></div>
       <div class="result-actions">
-        <button type="button" class="btn primary" id="again">Check another claim</button>
+        <button type="button" class="btn primary" id="again">Check another</button>
       </div>
     </section>
 
     <section id="view-history" hidden aria-label="History">
       <div class="hist-head">
-        <p class="muted">Claims you checked in the extension.</p>
-        <button type="button" class="btn quiet" id="clear">Clear history</button>
+        <p class="muted">Checks you ran in the extension.</p>
+        <button type="button" class="btn quiet" id="clear">Clear</button>
       </div>
       <ul id="hist" class="hist"></ul>
-      <p id="hist-empty" class="muted" hidden>No checks yet. Claims you check will show up here.</p>
+      <p id="hist-empty" class="muted" hidden>No checks yet.</p>
+    </section>
+
+    <section id="view-settings" hidden aria-label="Settings">
+      <form id="settings-form" novalidate>
+        <label for="server" class="label">Infomedics server address</label>
+        <input id="server" type="url" inputmode="url" spellcheck="false" autocomplete="off" aria-describedby="server-help server-msg">
+        <p id="server-help" class="muted">The extension sends checks to this server. Default: http://localhost:3000. Start it with <code>npm start</code>.</p>
+        <p id="server-msg" class="msg" role="status" hidden></p>
+        <div class="row">
+          <button type="submit" class="btn primary">Save</button>
+          <button type="button" class="btn quiet" id="reset-server">Use default</button>
+        </div>
+      </form>
     </section>
   </main>
 
-  <script src="data.js"></script>
   <script src="render.js"></script>
+  <script src="client.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

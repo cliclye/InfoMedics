@@ -1,14 +1,17 @@
 {
   "manifest_version": 3,
   "name": "Infomedics: Check health claims",
-  "version": "0.1.0",
-  "description": "Select a health claim on any page and see whether it holds up. Prototype: results are simulated.",
+  "version": "0.2.0",
+  "description": "Select a health claim on any page and check it against PubMed and MedlinePlus using your Infomedics server.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsFjALhGOWzDMNl3GZj6p8h0/c90KXZEkJKE8nqvsibLMeQDFlQkiB7hteAk6RtsGbEMeFzEpqDbPM677eKd9jzwQkyGMy3xwx8qgd2s6V5raeruSoFcYcLQ2uoW33E/CmOC3yRxjGG8a9KzXXtALxF/WxuQsyYwy+r/5eKmytMS3yNfyrNNwZvDswW0wGMRfAwATHVKHIP9X25HELfkaWtk24n4KmgRwH3iV8ZCd9lnfYKIY8N1GrR1BaFKjRcFiuHzNn5duJw3Hv+CMF+eX8nrUDhqd7/dgw0SwN6wndXdn5nj+7Ec2Ptpd2jFCQrQvbDE7G1DeLqoUXDrYl84XuwIDAQAB",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
   "permissions": ["contextMenus", "activeTab", "scripting", "storage"],
+  "host_permissions": ["http://localhost:3000/*", "http://127.0.0.1:3000/*"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
   "background": {
     "service_worker": "background.js"
   },
@@ -23,7 +26,7 @@
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
-      "js": ["data.js", "render.js", "content.js"],
+      "js": ["render.js", "client.js", "content.js"],
       "run_at": "document_idle"
     }
   ]

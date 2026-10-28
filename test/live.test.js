@@ -17,6 +17,13 @@ test('live: a claim finds real PubMed reviews and a MedlinePlus topic', { skip: 
   assert.deepEqual(c.warnings, []);
 });
 
+test('live: a narrow claim still finds evidence by falling back to fewer search terms', { skip: !live, timeout: 60_000 }, async () => {
+  const r = await runCheck('Drinking apple cider vinegar melts belly fat', { deps: { aiEnabled: () => false } });
+  const papers = r.claims[0].evidence.filter((e) => e.kind === 'pubmed');
+  assert.ok(papers.length >= 3, 'expected papers, got ' + papers.length);
+  assert.ok(papers.some((p) => /apple cider vinegar/i.test(p.title)));
+});
+
 test('live: a real web page is scraped, assessed, and its claims checked', { skip: !live, timeout: 90_000 }, async () => {
   const r = await runCheck('https://www.nhs.uk/conditions/common-cold/', { deps: { aiEnabled: () => false } });
   assert.equal(r.kind, 'page');

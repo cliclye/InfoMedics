@@ -26,7 +26,7 @@ Open http://localhost:3000.
 
 To enable verdicts, copy `.env.example` to `.env` and set `ANTHROPIC_API_KEY`. The default model is `claude-opus-5-5`; set `INFOMEDICS_MODEL` to change it. The top-right chip in the app shows which mode is active.
 
-Other optional settings: `NCBI_API_KEY` and `NCBI_EMAIL` (higher PubMed rate limit), `PORT`, `HOST` (default `127.0.0.1`, local only).
+Other optional settings: `NCBI_API_KEY` and `NCBI_EMAIL` (higher PubMed rate limit), `PORT`, `HOST` (default `127.0.0.1`, local only), `INFOMEDICS_ALLOWED_ORIGINS` (extra origins allowed to call the API, comma-separated).
 
 ## What a check does
 
@@ -78,17 +78,18 @@ lib/pubmed.js        PubMed search, parsing, ranking
 lib/medline.js       MedlinePlus search
 lib/judge.js         Claude verdicts with schema validation
 public/              the web app (index.html, styles.css, app.js)
-extension/           Chrome/Edge extension (see below)
+extension/           Chrome/Edge extension that uses the server (see below)
 test/                node:test suites
 ```
 
 ## Browser extension
 
-`extension/` is a Chrome/Edge extension that checks text you select on any page. It still uses the original **mock** verdict library, not this server; connecting it to `/api/check` is the natural next step. See [extension/README.md](extension/README.md).
+`extension/` is a Chrome/Edge extension that checks text you select on any page using this server (progress, evidence, and verdicts all come from `/api/check`). Run the server, load the folder as an unpacked extension, and select some text. See [extension/README.md](extension/README.md).
+
+The server accepts requests from the extension's fixed ID (`INFOMEDICS_ALLOWED_ORIGINS` adds more origins) and refuses other websites.
 
 ## Ideas for next steps
 
-- Connect the extension to the server.
 - Full-text retrieval and citation verification for the papers behind a verdict.
 - More sources: Cochrane, WHO and CDC pages, clinical guidelines.
 - Human clinician review for high-risk topics, and a reviewed set to measure verdict accuracy.

@@ -11,7 +11,7 @@
 
   var R = window.InfomedicsRender;
   var MIN_CHARS = 12;
-  var MAX_CHARS = 2000;
+  var MAX_CHARS = 8000;
 
   var host = null;
   var shadow = null;
@@ -64,7 +64,6 @@
       panel.innerHTML =
         '<div class="panel-head">' +
           '<span class="panel-logo">' + LOGO_SVG + '<span><span class="a">Info</span><span class="b">medics</span></span></span>' +
-          '<span class="panel-proto">Prototype: simulated</span>' +
           '<button type="button" class="panel-close" aria-label="Close">×</button>' +
         '</div>' +
         '<div class="panel-body" tabindex="-1" aria-live="polite"></div>';
@@ -95,13 +94,14 @@
   // ---------- Panel ----------
   function closePanel() {
     token++;
+    if (typeof currentCheck !== 'undefined' && currentCheck) { currentCheck.cancel(); currentCheck = null; }
     if (panel) panel.hidden = true;
   }
 
   function placePanel(rect) {
     var vw = window.innerWidth;
     var vh = window.innerHeight;
-    var w = Math.min(400, vw - 16);
+    var w = Math.min(420, vw - 16);
     panel.style.width = w + 'px';
     panel.style.maxHeight = (vh - 16) + 'px';
     var h = panel.offsetHeight;
@@ -122,29 +122,59 @@
     panel.style.top = top + 'px';
   }
 
+  var currentCheck = null;
+
+  function renderProgress(steps) {
+    var items = steps.map(function (st) {
+      return '<li class="is-pending" data-step="' + R.esc(st.id) + '"><span class="dot" aria-hidden="true"></span><span>' + R.esc(st.label) + '<small></small></span></li>';
+    }).join('');
+    panelBody.innerHTML = '<div class="panel-progress" role="status"><p class="panel-title">Checking…</p><ol>' + items + '</ol></div>';
+  }
+
+  function updateStep(ev) {
+    var li = panelBody.querySelector('[data-step="' + ev.id + '"]');
+    if (!li) return;
+    li.className = ev.status === 'done' ? 'is-done' : 'is-active';
+    li.querySelector('.dot').textContent = ev.status === 'done' ? '✓' : '';
+    if (ev.detail) li.querySelector('small').textContent = ev.detail;
+  }
+
   async function startCheck(text, rect) {
     text = String(text || '').trim();
     if (!text) return;
     var my = ++token;
+    if (currentCheck) { currentCheck.cancel(); currentCheck = null; }
 
     try { await ensureHost(); } catch (e) { return; }
     hideFab();
-    panelBody.innerHTML = '<div class="panel-loading" role="status"><span class="panel-spinner" aria-hidden="true"></span><span>Checking trusted sources…</span></div>';
+    panelBody.innerHTML = '<div class="panel-progress" role="status"><p class="panel-title">Starting…</p></div>';
     panel.hidden = false;
     placePanel(rect);
 
-    var resp = null;
+    var check;
     try {
-      resp = await chrome.runtime.sendMessage({ type: 'analyze', text: text });
-    } catch (e) { /* extension was reloaded or updated */ }
-    if (my !== token) return;
+      check = InfomedicsClient.checkViaBackground(text, function (ev) {
+        if (my !== token) return;
+        if (ev.type === 'plan') renderProgress(ev.steps);
+        else if (ev.type === 'step') updateStep(ev);
+        placePanel(rect);
+      });
+    } catch (e) {
+      panelBody.innerHTML = '<div class="panel-error">Could not start the check.<small>If you just reloaded the extension, refresh this page and try again.</small></div>';
+      return;
+    }
+    currentCheck = check;
 
-    if (!resp || !resp.ok) {
-      panelBody.innerHTML = '<p class="panel-error">Could not check this right now. If you just reloaded the extension, refresh this page and try again.</p>';
+    var outcome;
+    try { outcome = await check.promise; } catch (err) {
+      if (my !== token) return;
+      panelBody.innerHTML = '<div class="panel-error" role="alert">' + R.esc(err.message) + '</div>';
       placePanel(rect);
       return;
     }
-    panelBody.innerHTML = R.renderCard(resp.entry, { maxQuote: 140 });
+    if (my !== token) return;
+    currentCheck = null;
+    panelBody.innerHTML = R.renderResult(outcome.result, { serverUrl: outcome.serverUrl });
     panelBody.scrollTop = 0;
     placePanel(rect);
     panelBody.focus({ preventScroll: true });

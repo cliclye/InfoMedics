@@ -1,6 +1,6 @@
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createApp } from '../server.js';
+import { createApp, EXTENSION_ORIGIN } from '../server.js';
 
 const FAKE = {
   aiEnabled: () => false,
@@ -90,6 +90,12 @@ test('rejects wrong content type, bad JSON, wrong method, cross-origin posts, an
   assert.equal((await post({ input: 'x' }, { Origin: 'https://evil.example' })).status, 403);
   assert.equal((await post({ input: 'x' }, { Origin: base })).status, 200);
   assert.equal((await post({ input: 'a'.repeat(100_000) })).status, 413);
+});
+
+test('the Infomedics extension origin is allowed, other extensions and sites are not', async () => {
+  assert.equal((await post({ input: 'Vitamin C cures colds' }, { Origin: EXTENSION_ORIGIN })).status, 200);
+  assert.equal((await post({ input: 'x' }, { Origin: 'chrome-extension://abcdefghijklmnopabcdefghijklmnop' })).status, 403);
+  assert.equal((await post({ input: 'x' }, { Origin: 'https://evil.example' })).status, 403);
 });
 
 test('rate limiting returns 429 after the limit', async () => {
