@@ -2,16 +2,16 @@
 
 .fab {
   position: fixed; display: inline-flex; align-items: center; gap: 8px;
-  background: linear-gradient(135deg, #0a7cff, #5b4ee8); color: #fff; border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 999px;
+  background: linear-gradient(135deg, #3a3a3f, #0a0a0b); color: #fff; border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 999px;
   padding: 8px 16px 8px 8px; cursor: pointer;
   font: 600 14px/1 var(--font); letter-spacing: -0.01em;
-  box-shadow: 0 10px 28px -6px rgba(60, 80, 235, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.4);
   animation: fab-in 0.6s var(--spring) both;
   transition: transform 0.45s var(--spring), filter 0.25s;
 }
 .fab:hover { transform: translateY(-2px); filter: brightness(1.07); }
 .fab:active { transform: scale(0.95); transition-duration: 0.1s; }
-.fab:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.9), 0 0 0 7px #0a7cff; }
+.fab:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.9), 0 0 0 7px #111113; }
 .fab svg { width: 24px; height: 24px; }
 @keyframes fab-in { from { opacity: 0; transform: translateY(8px) scale(0.7); } }
 
@@ -20,7 +20,7 @@
   background: rgba(250, 252, 255, 0.78); color: var(--ink);
   -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.85); border-radius: 26px; overflow: hidden;
-  box-shadow: 0 30px 80px -16px rgba(20, 30, 90, 0.5), 0 0 0 0.5px rgba(20, 30, 80, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  box-shadow: 0 30px 80px -16px rgba(0, 0, 0, 0.5), 0 0 0 0.5px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.95);
   font: 16px/1.5 var(--font);
   transform-origin: top left;
   animation: panel-in 0.55s var(--spring) both;
@@ -35,14 +35,14 @@
   padding: 10px 10px 10px 16px; border-bottom: 1px solid var(--line); background: rgba(255, 255, 255, 0.4);
 }
 .panel-logo { display: inline-flex; align-items: center; gap: 9px; font: 700 17px/1 var(--font); letter-spacing: -0.03em; }
-.panel-logo svg { width: 26px; height: 26px; filter: drop-shadow(0 3px 6px rgba(70, 80, 230, 0.35)); }
+.panel-logo svg { width: 26px; height: 26px; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35)); }
 .panel-close {
   margin-left: auto; flex: none; width: 34px; height: 34px; border: 0; border-radius: 50%;
-  background: rgba(24, 36, 84, 0.07); color: var(--ink); font-size: 22px; line-height: 1; cursor: pointer;
+  background: rgba(0, 0, 0, 0.07); color: var(--ink); font-size: 22px; line-height: 1; cursor: pointer;
   transition: transform 0.45s var(--spring), background-color 0.25s;
 }
-.panel-close:hover { background: rgba(24, 36, 84, 0.14); transform: rotate(90deg); }
-.panel-close:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(10, 124, 255, 0.35); }
+.panel-close:hover { background: rgba(0, 0, 0, 0.14); transform: rotate(90deg); }
+.panel-close:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(10, 10, 12, 0.35); }
 
 .panel-body { overflow: auto; flex: 1 1 auto; }
 .panel-body:focus { outline: none; }
@@ -51,11 +51,11 @@
 .panel-progress ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
 .panel-progress li { position: relative; display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: start; font-size: 15px; font-weight: 500; padding-bottom: 14px; transition: opacity 0.4s; }
 .panel-progress li:not(:last-child)::before { content: ""; position: absolute; left: 13px; top: 30px; bottom: 2px; width: 2px; border-radius: 2px; background: var(--line); }
-.panel-progress li.is-done:not(:last-child)::before { background: linear-gradient(#0a7cff, #5b4ee8); }
+.panel-progress li.is-done:not(:last-child)::before { background: linear-gradient(#8b8b93, #0a0a0b); }
 .panel-progress .dot { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #fff; }
 .panel-progress li > span:last-child { padding-top: 3px; }
-.panel-progress li.is-active .dot { border-color: rgba(10, 124, 255, 0.25); border-top-color: #0a7cff; animation: spin 0.85s linear infinite; box-shadow: 0 0 18px rgba(10, 124, 255, 0.35); }
-.panel-progress li.is-done .dot { background: linear-gradient(135deg, #0a7cff, #5b4ee8); border-color: transparent; animation: dot-pop 0.6s var(--spring) both; }
+.panel-progress li.is-active .dot { border-color: rgba(10, 10, 12, 0.25); border-top-color: #111113; animation: spin 0.85s linear infinite; box-shadow: 0 0 18px rgba(10, 10, 12, 0.35); }
+.panel-progress li.is-done .dot { background: linear-gradient(135deg, #3a3a3f, #0a0a0b); border-color: transparent; animation: dot-pop 0.6s var(--spring) both; }
 .panel-progress li.is-pending { opacity: 0.5; }
 .panel-progress small { display: block; color: var(--muted); font-weight: 400; }
 .panel-title { margin: 0 0 16px; font-weight: 700; font-size: 20px; letter-spacing: -0.03em; }
@@ -68,3 +68,11 @@
   .fab, .panel { animation: none; }
   .panel-progress li.is-active .dot { animation-duration: 2.4s; }
 }
+
+.panel-progress li.is-active > span:last-child { background: linear-gradient(90deg, var(--ink) 30%, var(--muted) 50%, var(--ink) 70%); background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: text-sweep 2.2s linear infinite; }
+.panel-progress li.is-active small { -webkit-text-fill-color: var(--muted); }
+.fab { position: fixed; overflow: hidden; isolation: isolate; }
+.fab::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%); transform: translateX(-130%); transition: transform 0.9s var(--ease); }
+.fab:hover::before { transform: translateX(130%); }
+@keyframes text-sweep { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .panel-progress li.is-active > span:last-child { animation: none; } }

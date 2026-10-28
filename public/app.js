@@ -74,7 +74,18 @@ function addToHistory(result) {
 }
 
 // ---------- Views and routing ----------
-function showView(name, { focus = true } = {}) {
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+let firstView = true;
+
+// Cross-fade between pages when the browser can (View Transitions API).
+function showView(name, options = {}) {
+  const apply = () => applyView(name, options);
+  if (!firstView && document.startViewTransition && !reducedMotion.matches) document.startViewTransition(apply);
+  else apply();
+  firstView = false;
+}
+
+function applyView(name, { focus = true } = {}) {
   for (const [key, el] of Object.entries(views)) el.hidden = key !== name;
   const navKey = name === 'result' || name === 'progress' ? 'check' : name;
   document.querySelectorAll('[data-nav]').forEach((a) => {
@@ -421,6 +432,9 @@ document.addEventListener('click', async (e) => {
       await navigator.clipboard.writeText(resultText(currentResult));
       action.textContent = 'Copied ✓';
     } catch { action.textContent = 'Copy failed'; }
+    action.classList.remove('bump');
+    void action.offsetWidth; // restart the animation
+    action.classList.add('bump');
     setTimeout(() => { action.textContent = 'Copy summary'; }, 2000);
   }
 });
@@ -449,6 +463,28 @@ document.addEventListener('pointermove', (e) => {
     target.style.setProperty('--my', `${e.clientY - box.top}px`);
   });
 });
+
+// Backdrop orbs drift toward the pointer; the dock slips away while scrolling down and returns on scroll up.
+const backdrop = $('.bg');
+let parallaxFrame = 0;
+document.addEventListener('pointermove', (e) => {
+  if (parallaxFrame || e.pointerType === 'touch' || reducedMotion.matches) return;
+  parallaxFrame = requestAnimationFrame(() => {
+    parallaxFrame = 0;
+    backdrop.style.setProperty('--px', (e.clientX / window.innerWidth - 0.5).toFixed(3));
+    backdrop.style.setProperty('--py', (e.clientY / window.innerHeight - 0.5).toFixed(3));
+  });
+});
+
+const dock = $('.dock-wrap');
+let lastScroll = 0;
+window.addEventListener('scroll', () => {
+  const y = window.scrollY;
+  const desktop = window.matchMedia('(min-width: 701px)').matches;
+  dock.classList.toggle('away', desktop && y > 140 && y > lastScroll + 4);
+  if (y < lastScroll - 4 || y <= 140) dock.classList.remove('away');
+  lastScroll = y;
+}, { passive: true });
 
 const isApple = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 if (!isApple) { const key = $('#input-hint kbd'); if (key) key.textContent = 'Ctrl'; }
