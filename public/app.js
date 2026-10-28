@@ -144,34 +144,58 @@ const STANCE = {
 };
 
 const TONE = { benefit: 'reports a benefit', no_benefit: 'no or limited benefit', mixed: 'mixed' };
+const CRED_MARK = { agency: '✓', peer_reviewed: '✓', journal: '!' };
 
-function evidenceItem(e) {
-  const stance = e.stance && STANCE[e.stance]
-    ? `<span class="stance s-${esc(e.stance)}"><span aria-hidden="true">${STANCE[e.stance][1]}</span>${esc(STANCE[e.stance][0])}</span>` : '';
-  const link = `<a class="ev-title" href="${esc(e.url)}" target="_blank" rel="noopener noreferrer">${esc(e.title)}<span class="sr-only"> (opens in a new tab)</span></a>`;
-  if (e.kind === 'medlineplus') {
-    return `<li class="tile ev"><div class="ev-meta"><span class="ev-design">MedlinePlus</span><span>Plain-language topic</span>${stance}</div>${link}
-      ${e.note ? `<p class="ev-note"><span class="label">What it says:</span> ${esc(e.note)}</p>` : `<p class="ev-note">${esc(e.summary)}</p>`}</li>`;
-  }
-  return `<li class="tile ev"><div class="ev-meta"><span class="ev-design">${esc(e.design)}</span>${e.year ? `<span>${esc(e.year)}</span>` : ''}<span>${esc(e.source)}</span>${stance}${!e.stance && TONE[e.tone] ? `<span class="stance s-neutral" title="A keyword guess from the conclusion's wording, not a judgement">Wording: ${esc(TONE[e.tone])}</span>` : ''}</div>${link}
-    ${e.note ? `<p class="ev-note"><span class="label">What it found:</span> ${esc(e.note)}</p>` : ''}
-    ${e.conclusion ? `<p class="ev-note"><span class="label">Authors’ conclusion:</span> ${esc(e.conclusion)}</p>` : ''}</li>`;
+function hostOf(url) {
+  try { return new URL(url).host.replace(/^www\./, ''); } catch { return ''; }
 }
 
-function evidenceBlock(c, { collapsible = false } = {}) {
-  const papers = c.evidence.filter((e) => e.kind === 'pubmed');
-  const topics = c.evidence.filter((e) => e.kind === 'medlineplus');
+function credChip(e) {
+  const c = e.credibility;
+  if (!c) return '';
+  return `<span class="cred cred-${esc(c.tier)}" title="${esc(c.detail)}"><span aria-hidden="true">${CRED_MARK[c.tier] || '•'}</span>${esc(c.label)}</span>`;
+}
+
+// Where it came from: the real address, and which search found it.
+function whereLine(e) {
+  const via = e.via ? ` · found by the ${esc(e.via)}` : '';
+  return `<p class="ev-where"><span class="ev-host">${esc(hostOf(e.url))}</span>${via}</p>`;
+}
+
+function evidenceItem(e, idx) {
+  const stance = e.stance && STANCE[e.stance]
+    ? `<span class="stance s-${esc(e.stance)}"><span aria-hidden="true">${STANCE[e.stance][1]}</span>${esc(STANCE[e.stance][0])}</span>` : '';
+  const num = e.cited ? `<span class="cite-num" aria-label="Source ${e.cited}">${e.cited}</span>` : '';
+  const anchor = e.cited ? ` id="src-${idx}-${e.cited}"` : '';
+  const link = `<a class="ev-title" href="${esc(e.url)}" target="_blank" rel="noopener noreferrer">${esc(e.title)}<span class="sr-only"> (opens in a new tab)</span></a>`;
+  const foot = `<div class="ev-foot">${credChip(e)}${whereLine(e)}</div>`;
+  const cls = `tile ev${e.cited ? ' is-cited' : ''}`;
+  if (e.kind === 'medlineplus' || e.kind === 'nhs') {
+    const name = e.kind === 'nhs' ? 'NHS' : 'MedlinePlus';
+    const reviewed = e.reviewed ? `<span>Page dated ${esc(e.reviewed)}</span>` : '';
+    return `<li class="${cls}"${anchor}><div class="ev-meta">${num}<span class="ev-design">${name}</span><span>Health-agency page</span>${reviewed}${stance}</div>${link}
+      ${e.note ? `<p class="ev-note"><span class="label">What it says:</span> ${esc(e.note)}</p>` : `<p class="ev-note">${esc(e.summary)}</p>`}${foot}</li>`;
+  }
+  return `<li class="${cls}"${anchor}><div class="ev-meta">${num}<span class="ev-design">${esc(e.design)}</span>${e.year ? `<span>${esc(e.year)}</span>` : ''}<span>${esc(e.source)}</span>${stance}${!e.stance && TONE[e.tone] ? `<span class="stance s-neutral" title="A keyword guess from the conclusion's wording, not a judgement">Wording: ${esc(TONE[e.tone])}</span>` : ''}</div>${link}
+    ${e.note ? `<p class="ev-note"><span class="label">What it found:</span> ${esc(e.note)}</p>` : ''}
+    ${e.conclusion ? `<p class="ev-note"><span class="label">Authors’ conclusion:</span> ${esc(e.conclusion)}</p>` : ''}${foot}</li>`;
+}
+
+function evidenceBlock(c, { idx = 0, collapsible = false } = {}) {
   const s = c.evidenceSummary || {};
+  const cited = c.evidence.filter((e) => e.cited).sort((a, b) => a.cited - b.cited);
+  const others = c.evidence.filter((e) => !e.cited);
+  const papers = c.evidence.filter((e) => e.kind === 'pubmed');
+  const searched = `Searched PubMed${s.query ? ` for <code>${esc(s.query)}</code>` : ''}, MedlinePlus and the NHS website. Every source below comes from one of those three, and each is labelled with why it counts.`;
   let inner = '';
   if (!c.evidence.length) {
-    inner = '<p class="muted">No matching research papers or health-topic pages were found.</p>';
+    inner = '<p class="muted">No matching research papers or health-agency pages were found.</p>';
   } else {
-    if (papers.length) {
-      inner += `<p class="ev-summary">Top ${papers.length} of ${Number(s.pubmedTotal || papers.length).toLocaleString('en-US')} matching PubMed result${s.pubmedTotal === 1 ? '' : 's'}, ranked by study type, relevance and recency. Search: <code>${esc(s.query || '')}</code></p><ul class="ev-list">${papers.map(evidenceItem).join('')}</ul>`;
-    }
-    if (topics.length) inner += `<p class="ev-summary ev-gap">Plain-language summaries from the US National Library of Medicine:</p><ul class="ev-list">${topics.map(evidenceItem).join('')}</ul>`;
+    inner += `<p class="ev-summary">${searched}${papers.length ? ` Top ${papers.length} of ${Number(s.pubmedTotal || papers.length).toLocaleString('en-US')} matching PubMed result${s.pubmedTotal === 1 ? '' : 's'}, ranked by study type, relevance and recency.` : ''}</p>`;
+    if (cited.length) inner += `<h3 class="sub-h">Cited in this verdict</h3><ul class="ev-list">${cited.map((e) => evidenceItem(e, idx)).join('')}</ul>`;
+    if (others.length) inner += `<h3 class="sub-h">${cited.length ? 'Also found, not cited' : 'Found'}</h3><ul class="ev-list">${others.map((e) => evidenceItem(e, idx)).join('')}</ul>`;
   }
-  const title = `Evidence (${c.evidence.length})`;
+  const title = c.rated && cited.length ? `Sources (${cited.length} cited, ${c.evidence.length} found)` : `Sources found (${c.evidence.length})`;
   return collapsible
     ? `<details class="block"><summary><strong>${esc(title)}</strong></summary>${inner}</details>`
     : `<section class="block"><h2>${esc(title)}</h2>${inner}</section>`;
@@ -185,7 +209,7 @@ function confidenceBlock(c, { card = false } = {}) {
 }
 
 function linksBlock(c, { card = false, bare = false } = {}) {
-  const topics = c.references.topics.map((t) => `<a href="${esc(t.url)}" target="_blank" rel="noopener noreferrer"><span>${esc(t.title)}<small> · MedlinePlus</small></span><span aria-hidden="true">↗</span></a>`).join('');
+  const topics = c.references.topics.map((t) => `<a href="${esc(t.url)}" target="_blank" rel="noopener noreferrer"><span>${esc(t.title)}<small> · ${esc(t.source || 'MedlinePlus')}</small></span><span aria-hidden="true">↗</span></a>`).join('');
   const search = c.references.search.map((s) => `<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer"><span>${esc(s.name)}<small> · ${esc(s.note)}</small></span><span aria-hidden="true">↗</span></a>`).join('');
   const inner = `${topics ? `<div class="links">${topics}</div>` : ''}<p class="links-title">Search it yourself</p><div class="links">${search}</div>`;
   if (bare) return inner;
@@ -196,9 +220,16 @@ function warningsBlock(c) {
   return c.warnings && c.warnings.length ? c.warnings.map((w) => `<p class="notice">${esc(w)}</p>`).join('') : '';
 }
 
-function explanationBlock(c) {
+// [1] markers in the AI's explanation become buttons that jump to that source. Only numbers that
+// match a real cited source are linked.
+function withCites(text, idx, count) {
+  return esc(text).replace(/\[(\d{1,2})\]/g, (m, n) => (Number(n) >= 1 && Number(n) <= count
+    ? `<button type="button" class="cite" data-cite="${idx}-${n}" aria-label="Go to source ${n}">${n}</button>` : m));
+}
+
+function explanationBlock(c, idx = 0) {
   const ungrounded = c.rated && !c.grounded ? '<p class="notice">No sources were found for this claim, so the AI relied on its background knowledge.</p>' : '';
-  return `<section class="block"><h2>${c.rated ? 'What the evidence says' : 'What we found'}</h2><p class="explain">${esc(c.explanation)}</p>${ungrounded}</section>`;
+  return `<section class="block"><h2>${c.rated ? 'What the evidence says' : 'What we found'}</h2><p class="explain">${withCites(c.explanation, idx, c.citedCount || 0)}</p>${ungrounded}</section>`;
 }
 
 const DISCLAIMER = '<p class="disclaimer" role="note"><strong>Important:</strong> Infomedics is a prototype and does not provide medical advice. Talk to a qualified clinician about health decisions.</p>';
@@ -207,7 +238,7 @@ function singleClaim(c) {
   return `<article>
     ${verdictCard(c, { headingId: true })}
     <div class="result-grid has-side">
-      <div>${warningsBlock(c)}${explanationBlock(c)}${flagsBlock(c)}${evidenceBlock(c)}</div>
+      <div>${warningsBlock(c)}${explanationBlock(c, 0)}${flagsBlock(c)}${evidenceBlock(c, { idx: 0 })}</div>
       <aside class="side-sticky" aria-label="Confidence and sources">${confidenceBlock(c, { card: true })}${linksBlock(c, { card: true })}${DISCLAIMER}</aside>
     </div>
   </article>`;
@@ -217,8 +248,8 @@ function claimCard(c, index, total) {
   return `<article class="glass claim-card" aria-label="Claim ${index + 1} of ${total}">
     <p class="claim-index">Claim ${index + 1} of ${total}</p>
     ${verdictCard(c)}
-    ${warningsBlock(c)}${explanationBlock(c)}${confidenceBlock(c)}${flagsBlock(c)}
-    ${evidenceBlock(c, { collapsible: true })}
+    ${warningsBlock(c)}${explanationBlock(c, index)}${confidenceBlock(c)}${flagsBlock(c)}
+    ${evidenceBlock(c, { idx: index, collapsible: true })}
     <details class="block"><summary><strong>Read more from trusted sources</strong></summary>${linksBlock(c, { bare: true })}</details>
   </article>`;
 }
@@ -226,11 +257,15 @@ function claimCard(c, index, total) {
 function pageCard(page) {
   const tier = { trusted: 'Known health organization', institutional: 'Government or university site', unknown: 'Reputation unknown' }[page.domain.tier];
   const signals = page.signals.map((s) => `<li class="tile signal ${esc(s.status)}"><span class="signal-icon" aria-hidden="true">${{ good: '✓', warn: '!', info: 'i' }[s.status] || 'i'}</span><div><strong>${esc(s.label)}</strong><p>${esc(s.detail)}</p></div></li>`).join('');
+  const citedLinks = page.citedLinks && page.citedLinks.length
+    ? `<h3 class="sub-h">Sources this page links to</h3><ul class="page-sources">${page.citedLinks.map((l) => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.host)}<span class="sr-only"> (opens in a new tab)</span></a><span class="muted"> · ${esc(l.label)}</span></li>`).join('')}</ul>`
+    : '<p class="muted ev-gap">This page does not link to any research journal, database or health agency.</p>';
   return `<section class="glass page-card" aria-label="Page assessment">
     <p class="eyebrow">Page checked</p>
     <h2>${esc(page.title || page.host)}</h2>
     <p class="page-host"><a href="${esc(page.finalUrl)}" target="_blank" rel="noopener noreferrer">${esc(page.host)}</a> · ${esc(tier)} · ${esc(page.wordCount.toLocaleString('en-US'))} words read</p>
     <ul class="signals">${signals}</ul>
+    ${citedLinks}
   </section>`;
 }
 
@@ -239,7 +274,8 @@ function resultText(r) {
   if (r.page) lines.push(`Page: ${r.page.title || r.page.host} (${r.page.finalUrl})`);
   r.claims.forEach((c, i) => {
     lines.push('', `${r.claims.length > 1 ? `Claim ${i + 1}: ` : 'Claim: '}${c.claim}`, `Verdict: ${verdictMeta(c.verdict, c.rated).label} (${c.confidence.level} confidence)`, c.explanation);
-    c.evidence.filter((e) => e.kind === 'pubmed').slice(0, 3).forEach((e) => lines.push(`- ${e.design}, ${e.year || 'n.d.'}: ${e.title} ${e.url}`));
+    const shown = c.evidence.filter((e) => e.cited).sort((a, b) => a.cited - b.cited);
+    (shown.length ? shown : c.evidence.slice(0, 4)).forEach((e) => lines.push(`${e.cited ? `[${e.cited}] ` : '- '}${e.title} (${e.credibility ? e.credibility.label : e.source}) ${e.url}`));
   });
   lines.push('', 'Infomedics is a prototype and does not provide medical advice. Talk to a qualified clinician about health decisions.');
   return lines.join('\n');
@@ -420,6 +456,19 @@ $('#cancel-btn').addEventListener('click', () => {
 $('#clear-history').addEventListener('click', () => { saveHistory([]); renderHistory(); $('#history-heading').focus({ preventScroll: true }); });
 
 document.addEventListener('click', async (e) => {
+  const cite = e.target.closest('[data-cite]');
+  if (cite) {
+    const target = document.getElementById(`src-${cite.dataset.cite}`);
+    if (target) {
+      const details = target.closest('details');
+      if (details) details.open = true;
+      target.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'center' });
+      target.classList.remove('flash');
+      void target.offsetWidth;
+      target.classList.add('flash');
+    }
+    return;
+  }
   const action = e.target.closest('[data-action]');
   if (!action) return;
   if (action.dataset.action === 'again') {

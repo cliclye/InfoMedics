@@ -18,6 +18,7 @@ function deps(overrides = {}) {
       aiEnabled: () => true,
       searchPubMed: async (s) => { calls.pubmed.push(s); return { articles: [ARTICLE('pm1'), ARTICLE('pm2')], total: 18, query: s.pubmedQuery, filtered: true }; },
       searchMedlinePlus: async (q) => { calls.medline.push(q); return [TOPIC]; },
+      searchNhs: async () => [],
       judgeClaim: async (args) => {
         calls.judge.push(args);
         return { verdict: 'unsupported', explanation: 'Reviews found no benefit for preventing colds.', confidence: { level: 'High', note: 'Reviews agree.' }, redFlags: ['Overclaims.'], evidenceNotes: [{ id: 'pm1', stance: 'contradicts', note: 'No effect.' }], model: 'claude-opus-5-5' };
@@ -167,6 +168,9 @@ test('topicIsRelevant keeps topics that share a word with the search terms', () 
   assert.equal(topicIsRelevant({ title: 'Common Cold' }, ['vitamin c', 'common cold']), true);
   assert.equal(topicIsRelevant({ title: 'Heart Attack' }, ['vitamin c', 'common cold']), false);
   assert.equal(topicIsRelevant({ title: 'Antibiotics' }, ['antibiotics', 'food']), true);
+  assert.equal(topicIsRelevant({ title: 'Vitamin D' }, ['vitamin c', 'common cold']), false);
+  assert.equal(topicIsRelevant({ title: 'Vitamin C' }, ['vitamin c', 'common cold']), true);
+  assert.equal(topicIsRelevant({ title: 'Antibiotic' }, ['antibiotics']), true); // plurals match
 });
 
 test('text with nothing searchable is not treated as a claim', async () => {
@@ -193,4 +197,31 @@ test('full-width characters and control characters do not hide a claim', async (
   const { deps: d, calls } = deps();
   await runCheck('ＶＩＴＡＭＩＮ Ｃ cures the cold\u0000', { deps: d });
   assert.equal(calls.pubmed[0].terms[0], 'vitamin c');
+});
+
+test('cited sources are numbered, labelled with credibility, and say which search found them', async () => {
+  const NHS = { id: 'nhs1', kind: 'nhs', title: 'Common cold', url: 'https://www.nhs.uk/conditions/common-cold/', organization: 'NHS', summary: 'Rest and fluids.', reviewed: '2024-05-01' };
+  const { deps: d } = deps({
+    searchNhs: async () => [NHS],
+    judgeClaim: async () => ({ verdict: 'unsupported', explanation: 'Reviews found no effect [1]. The NHS agrees [2].', citations: ['pm2', 'nhs1'], confidence: { level: 'High', note: 'ok' }, redFlags: [], evidenceNotes: [], model: 'claude-haiku-5-5' })
+  });
+  const r = await runCheck('Vitamin C cures the common cold', { deps: d });
+  const c = r.claims[0];
+  assert.equal(c.citedCount, 2);
+  const byId = Object.fromEntries(c.evidence.map((e) => [e.id, e]));
+  assert.equal(byId.pm2.cited, 1);
+  assert.equal(byId.nhs1.cited, 2);
+  assert.equal(byId.pm1.cited, undefined);
+  assert.equal(byId.pm2.via, 'PubMed search');
+  assert.equal(byId.nhs1.via, 'NHS website search');
+  assert.equal(byId.nhs1.credibility.tier, 'agency');
+  assert.equal(byId.pm2.credibility.tier, 'journal'); // fixture is not MEDLINE-indexed
+  assert.ok(c.references.topics.some((t) => t.url === NHS.url));
+});
+
+test('a failing NHS search is a warning, not a failure', async () => {
+  const { deps: d } = deps({ searchNhs: async () => { throw new Error('down'); } });
+  const r = await runCheck('Vitamin C cures the common cold', { deps: d });
+  assert.ok(r.claims[0].warnings.some((w) => /NHS/.test(w)));
+  assert.ok(r.claims[0].evidence.length > 0);
 });

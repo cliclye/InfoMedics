@@ -534,3 +534,22 @@ code { font-size: 0.88em; background: var(--tile); border: 1px solid var(--tile-
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
   .view:not([hidden]) :is(.block, .tip, .ev-list > li, .signal, .history-item, .how-step, .claim-card, .page-card, .side-card) { animation: none; }
 }
+
+
+/* ---------- Sources and citations ---------- */
+.sub-h { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 22px 0 10px; }
+.ev-summary code { font-size: 0.85em; }
+.cite { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; margin: 0 2px; border: 1px solid var(--tile-line); border-radius: 999px; background: var(--grad); color: var(--btn-ink); font: 700 0.72rem/1 var(--font); vertical-align: 0.25em; cursor: pointer; transition: transform 0.4s var(--spring), box-shadow 0.3s; }
+.cite:hover { transform: translateY(-2px) scale(1.15); box-shadow: 0 6px 14px -4px rgba(0, 0, 0, 0.5); }
+.cite-num { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 8px; background: var(--grad); color: var(--btn-ink); font-weight: 700; font-size: 0.78rem; }
+.ev.is-cited { border-left: 3px solid var(--ink); }
+.ev.flash { animation: flash 1.6s var(--ease); }
+@keyframes flash { 0%, 35% { background: var(--glass-hi); box-shadow: 0 0 0 3px var(--focus), 0 12px 40px -12px rgba(0, 0, 0, 0.45); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.ev-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); font-size: 0.82rem; }
+.ev-where { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
+.ev-host { font-weight: 600; color: var(--ink); }
+.cred { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.76rem; border-radius: 999px; padding: 2px 10px; border: 1px solid var(--tile-line); background: var(--tile); cursor: help; }
+.cred-agency, .cred-peer_reviewed { color: var(--supported-fg); background: var(--supported-bg); border-color: var(--supported-line); }
+.cred-journal { color: var(--mixed-fg); background: var(--mixed-bg); border-color: var(--mixed-line); }
+.page-sources { display: grid; gap: 6px; }
+.page-sources li { overflow-wrap: anywhere; }

@@ -5,7 +5,8 @@ import { createApp, EXTENSION_ORIGIN } from '../server.js';
 const FAKE = {
   aiEnabled: () => false,
   searchPubMed: async (s) => ({ articles: [], total: 0, query: s.pubmedQuery }),
-  searchMedlinePlus: async () => []
+  searchMedlinePlus: async () => [],
+  searchNhs: async () => []
 };
 
 let server;

@@ -24,7 +24,7 @@ Open http://localhost:3000.
 | **AI verdicts** | `ANTHROPIC_API_KEY` is set | A verdict (Supported, Mixed evidence, Unsupported, Needs a doctor, Not enough evidence), a plain-language explanation, a confidence level, and a stance for each source |
 | **Evidence only** | no key | Real PubMed and MedlinePlus results, red flags, page checks, and a keyword hint about each paper's conclusion. Claims are marked **Not rated**; Infomedics does not guess |
 
-To enable verdicts, copy `.env.example` to `.env` and set `ANTHROPIC_API_KEY`. The default model is `claude-opus-5-5`; set `INFOMEDICS_MODEL` to change it. The top-right chip in the app shows which mode is active.
+To enable verdicts, copy `.env.example` to `.env` and set `ANTHROPIC_API_KEY`. The default model is `claude-haiku-5-5` at the lowest effort (`low`), which is fast and cheap; set `INFOMEDICS_MODEL` and `INFOMEDICS_EFFORT` to change them. The top-right chip in the app shows which mode is active.
 
 Other optional settings: `NCBI_API_KEY` and `NCBI_EMAIL` (higher PubMed rate limit), `PORT`, `HOST` (default `127.0.0.1`, local only), `INFOMEDICS_ALLOWED_ORIGINS` (extra origins allowed to call the API, comma-separated).
 
@@ -48,10 +48,14 @@ Things to know:
 1. **Read.** Pasted text is used as written. For a link, the server downloads the page and extracts the article text, author, dates, and outbound links.
 2. **Find claims.** Sentences that make health claims are picked out (up to three).
 3. **Assess the page** (links only): reputation of the domain, named author, date, whether it cites research, and signs of selling or sponsorship.
-4. **Search.** Search terms are built from the claim and sent to PubMed (ranked by study type, relevance, recency; retracted papers dropped) and MedlinePlus (off-topic results filtered out).
+4. **Search and read.** Search terms are built from the claim and sent to three credible places, and the pages found are actually opened and read:
+   - **PubMed**: systematic reviews, meta-analyses and randomized trials, ranked by study type, relevance and recency. Retracted papers, preprints, editorials and letters are dropped, and papers from journals that NLM's MEDLINE does not index rank lower and are labelled.
+   - **MedlinePlus**: plain-language topics from the US National Library of Medicine (off-topic results filtered out).
+   - **The NHS website**: its site search is queried and the top matching pages are fetched and read.
+   Nothing else is searched, so every source is from a short list of credible places, and each one is labelled with why it counts (government health agency, peer-reviewed and MEDLINE-indexed, or journal article that is not).
 5. **Spot red flags in the wording.** Rule-based: miracle language, absolute words, fear tactics, conspiracy framing, vague authority, anecdotes, no source named.
 6. **Triage.** Emergencies and personal medical decisions (medicines, pregnancy, children, stopping treatment) are always sent to **Needs a doctor**, whatever the AI says.
-7. **Weigh** (AI mode). Claude gets the claim and the retrieved evidence and returns structured JSON. It may only cite the evidence it was given, and the server validates everything before it reaches the page.
+7. **Weigh** (AI mode). Claude gets the claim and the retrieved evidence and returns structured JSON. It may only cite the evidence it was given. Its explanation carries numbered citations such as [1]; the server checks that each number points at a real source it retrieved and drops any that do not. The page then shows **Cited in this verdict** (numbered, one click from the sentence that uses it) separately from **Also found, not cited**, each with its real address and which search found it.
 
 Progress streams to the UI as it happens.
 

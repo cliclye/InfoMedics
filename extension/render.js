@@ -59,18 +59,39 @@
     return '<a href="' + esc(safeUrl(url)) + '" target="_blank" rel="noopener noreferrer">' + inner + '<span class="im-sr"> (opens in a new tab)</span></a>';
   }
 
-  function evidenceItem(e) {
+  function hostOf(url) {
+    try { return new URL(url).host.replace(/^www\./, ''); } catch (e) { return ''; }
+  }
+
+  function credChip(e) {
+    var c = e.credibility;
+    if (!c) return '';
+    return '<span class="im-cred im-cred-' + esc(c.tier) + '" title="' + esc(c.detail) + '">' + (c.tier === 'journal' ? '!' : '✓') + ' ' + esc(c.label) + '</span>';
+  }
+
+  function evidenceItem(e, idx) {
     var stance = e.stance && STANCE[e.stance]
       ? '<span class="im-stance s-' + esc(e.stance) + '"><span aria-hidden="true">' + STANCE[e.stance][1] + '</span>' + esc(STANCE[e.stance][0]) + '</span>'
       : (e.tone && TONE[e.tone] ? '<span class="im-stance s-neutral" title="A keyword guess from the conclusion’s wording, not a judgement">Wording: ' + esc(TONE[e.tone]) + '</span>' : '');
-    if (e.kind === 'medlineplus') {
-      return '<li class="im-ev"><div class="im-ev-meta"><span class="im-ev-kind">MedlinePlus</span>' + stance + '</div>' +
+    var num = e.cited ? '<span class="im-num" aria-label="Source ' + e.cited + '">' + e.cited + '</span>' : '';
+    var anchor = e.cited ? ' id="src-' + idx + '-' + e.cited + '"' : '';
+    var foot = '<div class="im-ev-foot">' + credChip(e) + '<span class="im-where"><b>' + esc(hostOf(e.url)) + '</b>' + (e.via ? ' · found by the ' + esc(e.via) : '') + '</span></div>';
+    var cls = 'im-ev' + (e.cited ? ' is-cited' : '');
+    if (e.kind === 'medlineplus' || e.kind === 'nhs') {
+      return '<li class="' + cls + '"' + anchor + '><div class="im-ev-meta">' + num + '<span class="im-ev-kind">' + (e.kind === 'nhs' ? 'NHS' : 'MedlinePlus') + '</span>' + stance + '</div>' +
         link(e.url, '<span class="im-ev-title">' + esc(e.title) + '</span>') +
-        '<p>' + esc(truncate(e.note || e.summary || '', 220)) + '</p></li>';
+        '<p>' + esc(truncate(e.note || e.summary || '', 220)) + '</p>' + foot + '</li>';
     }
-    return '<li class="im-ev"><div class="im-ev-meta"><span class="im-ev-kind">' + esc(e.design) + '</span>' + (e.year ? '<span>' + esc(e.year) + '</span>' : '') + stance + '</div>' +
+    return '<li class="' + cls + '"' + anchor + '><div class="im-ev-meta">' + num + '<span class="im-ev-kind">' + esc(e.design) + '</span>' + (e.year ? '<span>' + esc(e.year) + '</span>' : '') + stance + '</div>' +
       link(e.url, '<span class="im-ev-title">' + esc(truncate(e.title, 150)) + '</span>') +
-      (e.note ? '<p>' + esc(truncate(e.note, 220)) + '</p>' : (e.conclusion ? '<p><b>Conclusion:</b> ' + esc(truncate(e.conclusion, 220)) + '</p>' : '')) + '</li>';
+      (e.note ? '<p>' + esc(truncate(e.note, 220)) + '</p>' : (e.conclusion ? '<p><b>Conclusion:</b> ' + esc(truncate(e.conclusion, 220)) + '</p>' : '')) + foot + '</li>';
+  }
+
+  // [1] markers in the AI's explanation become buttons that jump to that source (only real ones are linked).
+  function withCites(text, idx, count) {
+    return esc(text).replace(/\[(\d{1,2})\]/g, function (m, n) {
+      return Number(n) >= 1 && Number(n) <= count ? '<button type="button" class="im-cite" data-cite="' + idx + '-' + n + '" aria-label="Go to source ' + n + '">' + n + '</button>' : m;
+    });
   }
 
   function claimHtml(c, index, total) {
@@ -85,14 +106,16 @@
         }).join('') + '</ul>'
       : '<p class="im-noflags">No red flags found in the wording.</p>';
 
-    var papers = c.evidence.filter(function (e) { return e.kind === 'pubmed'; }).slice(0, 3);
-    var topics = c.evidence.filter(function (e) { return e.kind === 'medlineplus'; }).slice(0, 1);
-    var shown = topics.concat(papers);
+    // Cited sources first (all of them), then the best of the rest.
+    var cited = c.evidence.filter(function (e) { return e.cited; }).sort(function (a, b) { return a.cited - b.cited; });
+    var rest = c.evidence.filter(function (e) { return !e.cited; }).slice(0, Math.max(0, 4 - cited.length));
+    var shown = cited.concat(rest);
+    var label = cited.length ? 'Sources (' + cited.length + ' cited, ' + c.evidence.length + ' found)' : 'Sources found (' + c.evidence.length + ')';
     var evidence = shown.length
-      ? '<details class="im-details"><summary>Evidence (' + c.evidence.length + ')</summary><ul class="im-evlist">' + shown.map(evidenceItem).join('') + '</ul></details>'
-      : '<p class="im-muted">No matching research or health-topic pages were found.</p>';
+      ? '<details class="im-details"' + (cited.length ? ' open' : '') + '><summary>' + label + '</summary><p class="im-muted im-src-note">From PubMed, MedlinePlus and the NHS website, each labelled with why it counts.</p><ul class="im-evlist">' + shown.map(function (e) { return evidenceItem(e, index); }).join('') + '</ul></details>'
+      : '<p class="im-muted">No matching research or health-agency pages were found.</p>';
 
-    var refs = c.references.topics.slice(0, 2).map(function (t) { return { name: t.title, note: 'MedlinePlus', url: t.url }; })
+    var refs = c.references.topics.slice(0, 2).map(function (t) { return { name: t.title, note: t.source || 'MedlinePlus', url: t.url }; })
       .concat(c.references.search.slice(0, 3));
     var links = '<details class="im-details"><summary>Read more from trusted sources</summary><ul class="im-links">' + refs.map(function (r) {
       return '<li>' + link(r.url, '<span>' + esc(r.name) + '<small> · ' + esc(r.note) + '</small></span><span aria-hidden="true">↗</span>') + '</li>';
@@ -110,11 +133,11 @@
       '<div class="im-body">' +
         '<blockquote class="im-quote">' + esc(truncate(c.claim, 220)) + '</blockquote>' +
         notes +
-        '<h3>' + (c.rated ? 'What the evidence says' : 'What we found') + '</h3><p class="im-explain">' + esc(c.explanation) + '</p>' + ungrounded +
+        '<h3>' + (c.rated ? 'What the evidence says' : 'What we found') + '</h3><p class="im-explain">' + withCites(c.explanation, index, c.citedCount || 0) + '</p>' + ungrounded +
         '<div class="im-conf"><span class="im-meter" role="img" aria-label="Confidence: ' + esc(c.confidence.level) + ', ' + filled + ' of 3">' + segs + '</span><b>' + esc(c.confidence.level) + ' confidence</b></div>' +
         '<p class="im-muted">' + esc(c.confidence.note) + '</p>' +
         '<h3>Red flags</h3>' + flags +
-        '<h3>Evidence</h3>' + evidence +
+        '<h3>Sources</h3>' + evidence +
         links +
       '</div></section>';
   }
@@ -150,5 +173,21 @@
     '</article>';
   }
 
-  root.InfomedicsRender = { esc: esc, badge: badge, renderResult: renderResult, truncate: truncate, verdictMeta: verdictMeta };
+  // Wire up the numbered citation buttons inside `container` (a panel body, popup result, or shadow root).
+  function bindCitations(container) {
+    container.addEventListener('click', function (e) {
+      var btn = e.target.closest && e.target.closest('[data-cite]');
+      if (!btn) return;
+      var target = container.querySelector('#src-' + btn.getAttribute('data-cite'));
+      if (!target) return;
+      var details = target.closest('details');
+      if (details) details.open = true;
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.classList.remove('flash');
+      void target.offsetWidth;
+      target.classList.add('flash');
+    });
+  }
+
+  root.InfomedicsRender = { bindCitations: bindCitations, esc: esc, badge: badge, renderResult: renderResult, truncate: truncate, verdictMeta: verdictMeta };
 })(globalThis);

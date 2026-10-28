@@ -69,6 +69,7 @@
         '<div class="panel-body" tabindex="-1" aria-live="polite"></div>';
       panelBody = panel.querySelector('.panel-body');
       panel.querySelector('.panel-close').addEventListener('click', closePanel);
+      R.bindCitations(panelBody);
       shadow.appendChild(panel);
 
       document.documentElement.appendChild(host);

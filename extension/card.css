@@ -109,6 +109,18 @@
 
 .im-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
+.im-src-note { margin: 0 0 8px !important; font-size: 13px; }
+.im-cite { display: inline-grid; place-items: center; min-width: 19px; height: 19px; padding: 0 5px; margin: 0 2px; border: 0; border-radius: 999px; background: var(--grad); color: #fff; font: 700 11px/1 var(--font); vertical-align: 0.2em; cursor: pointer; transition: transform 0.4s var(--spring); }
+.im-cite:hover { transform: scale(1.18); }
+.im-num { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 7px; background: var(--grad); color: #fff; font-weight: 700; font-size: 12px; }
+.im-ev.is-cited { border-left: 3px solid #0a0a0b; }
+.im-ev.flash { animation: im-flash 1.6s var(--ease); }
+.im-ev-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 10px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: 12px; }
+.im-where { color: var(--muted); overflow-wrap: anywhere; }
+.im-where b { color: var(--ink); }
+.im-cred { display: inline-flex; gap: 5px; font-weight: 700; font-size: 11.5px; border-radius: 999px; padding: 1px 9px; border: 1px solid rgba(52, 199, 89, 0.5); background: rgba(52, 199, 89, 0.17); color: #0a5a24; cursor: help; }
+.im-cred-journal { border-color: rgba(255, 159, 10, 0.55); background: rgba(255, 159, 10, 0.19); color: #7a4300; }
+@keyframes im-flash { 0%, 35% { background: rgba(255, 255, 255, 0.95); box-shadow: 0 0 0 3px rgba(10, 10, 12, 0.3); } 100% { box-shadow: 0 0 0 0 transparent; } }
 @keyframes im-rise { from { opacity: 0; transform: translateY(10px); } }
 @keyframes im-pop { from { opacity: 0; transform: scale(0.6); } }
 @keyframes im-fill { from { transform: scaleX(0); } }

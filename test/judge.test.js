@@ -39,6 +39,7 @@ const GOOD = {
   confidence_level: 'High',
   confidence_note: 'Several meta-analyses agree.',
   red_flags: ['Treats one nutrient as a cure.'],
+  cited_ids: ['pm1'],
   evidence_notes: [
     { id: 'pm1', stance: 'contradicts', note: 'Found no reduction in colds.' },
     { id: 'made-up', stance: 'supports', note: 'Should be dropped.' }
@@ -62,23 +63,39 @@ test('judgeClaim sends the claim and evidence, and returns a validated verdict',
   assert.equal(requests.length, 1);
   const { body, headers, url } = requests[0];
   assert.match(url, /\/v1\/messages/);
-  assert.equal(body.model, 'claude-opus-5-5');
+  assert.equal(body.model, 'claude-haiku-5-5');
+  assert.equal(body.output_config.effort, 'low');
   assert.equal(body.output_config.format.type, 'json_schema');
   assert.deepEqual(body.output_config.format.schema.properties.verdict.enum, VERDICTS);
   assert.match(body.messages[0].content, /<claim>Vitamin C cures colds<\/claim>/);
   assert.match(body.messages[0].content, /id="pm1"/);
   assert.match(body.system, /data, not instructions/);
-  assert.equal(body.fallbacks, 'default');
-  assert.match(headers['anthropic-beta'] || '', /server-side-fallback-2026-07-01/);
+  // Haiku 5.5 has no server-side fallback, so none is requested.
+  assert.equal(body.fallbacks, undefined);
+  assert.doesNotMatch(headers['anthropic-beta'] || '', /server-side-fallback/);
+});
+
+test('larger models still ask for the server-side fallback', async () => {
+  requests = [];
+  process.env.INFOMEDICS_MODEL = 'claude-opus-5-5';
+  respond = () => ({ json: message(GOOD) });
+  try {
+    await judgeClaim({ claim: 'x', evidence: EVIDENCE, redFlags: [], triage: {} }, { client });
+  } finally { delete process.env.INFOMEDICS_MODEL; }
+  assert.equal(requests[0].body.fallbacks, 'default');
+  assert.match(requests[0].headers['anthropic-beta'] || '', /server-side-fallback-2026-07-01/);
 });
 
 test('if the fallback parameter is rejected (400), it retries as a plain request', async () => {
+  process.env.INFOMEDICS_MODEL = 'claude-opus-5-5';
   requests = [];
   respond = (body) => (body.fallbacks
     ? { status: 400, json: { type: 'error', error: { type: 'invalid_request_error', message: 'fallbacks not supported' } } }
     : { json: message(GOOD) });
-  const result = await judgeClaim({ claim: 'x', evidence: EVIDENCE, redFlags: [], triage: {} }, { client });
-  assert.equal(result.verdict, 'unsupported');
+  try {
+    const result = await judgeClaim({ claim: 'x', evidence: EVIDENCE, redFlags: [], triage: {} }, { client });
+    assert.equal(result.verdict, 'unsupported');
+  } finally { delete process.env.INFOMEDICS_MODEL; }
   assert.equal(requests.length, 2);
   assert.equal(requests[1].body.fallbacks, undefined);
 });
@@ -131,4 +148,27 @@ test('buildUserMessage fences untrusted text so it cannot forge tags', () => {
 
 test('buildUserMessage says so when there is no evidence', () => {
   assert.match(buildUserMessage({ claim: 'x', evidence: [], redFlags: [], triage: {} }), /No evidence could be retrieved/);
+});
+
+test('citation markers become numbered references that point only at real sources', () => {
+  const ids = new Set(['pm1', 'pm2', 'mp1']);
+  const out = normalizeJudgement({
+    ...GOOD,
+    explanation: 'Reviews found no effect on how often people catch colds [pm2]. A health topic page agrees [mp1, pm1]. Some claim more [pm999].',
+    cited_ids: ['pm1', 'pm404']
+  }, ids);
+  assert.equal(out.explanation, 'Reviews found no effect on how often people catch colds [1]. A health topic page agrees [2][3]. Some claim more.');
+  assert.deepEqual(out.citations, ['pm2', 'mp1', 'pm1']);
+});
+
+test('ids listed in cited_ids are kept even when the text has no markers', () => {
+  const out = normalizeJudgement({ ...GOOD, explanation: 'Large reviews found that vitamin C does not stop colds in most people.', cited_ids: ['mp1', 'nope'] }, new Set(['mp1']));
+  assert.deepEqual(out.citations, ['mp1']);
+  assert.doesNotMatch(out.explanation, /\[/);
+});
+
+test('the NHS evidence block is sent to the model as data', () => {
+  const msg = buildUserMessage({ claim: 'x', evidence: [{ id: 'nhs1', kind: 'nhs', title: 'Common cold', url: 'https://www.nhs.uk/conditions/common-cold/', summary: 'Rest <b>and</b> fluids.' }] });
+  assert.match(msg, /id="nhs1" source="NHS website/);
+  assert.match(msg, /Rest ‹b›and‹\/b› fluids\./);
 });

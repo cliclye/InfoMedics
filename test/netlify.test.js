@@ -7,7 +7,8 @@ const PAPER = { id: 'pm1', kind: 'pubmed', pmid: '1', title: 'Vitamin C for cold
 const deps = {
   aiEnabled: () => false,
   searchPubMed: async (s) => ({ articles: [PAPER], total: 3, query: s.pubmedQuery }),
-  searchMedlinePlus: async () => []
+  searchMedlinePlus: async () => [],
+  searchNhs: async () => []
 };
 const SITE = 'https://infomedics.example.app';
 const post = (handler, body, headers = {}, ctx = { ip: '1.2.3.4' }) => handler(new Request(`${SITE}/api/check`, {

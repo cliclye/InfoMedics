@@ -16,6 +16,7 @@ const DEPS = {
   aiEnabled: () => true,
   searchPubMed: async (s) => ({ articles: [PAPER], total: 18, query: s.pubmedQuery }),
   searchMedlinePlus: async () => [TOPIC],
+  searchNhs: async () => [],
   judgeClaim: async () => ({ verdict: 'unsupported', explanation: 'Reviews found no benefit for preventing colds.', confidence: { level: 'High', note: 'Reviews agree.' }, redFlags: [], evidenceNotes: [{ id: 'pm1', stance: 'contradicts', note: 'No effect.' }], model: 'claude-opus-5-5' })
 };
 
@@ -207,7 +208,7 @@ test('renderResult shows verdict, evidence, flags, links, and escapes everything
   assert.match(html, /Meta-analysis/);
   assert.match(html, /Miracle-cure language/);
   assert.match(html, /High confidence/);
-  assert.match(html, /AI verdict by claude-opus-5-5/);
+  assert.match(html, /AI verdict by claude-haiku-5-5/);
   assert.match(html, /does not provide medical advice/);
   assert.match(html, /href="https:\/\/medlineplus\.gov\/commoncold\.html"/);
   assert.doesNotMatch(html, /<img src=x/);

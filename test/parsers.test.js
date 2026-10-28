@@ -75,3 +75,15 @@ test('parseTopics decodes escaped HTML and ignores non-MedlinePlus or empty entr
   assert.equal(topics[0].summary, 'What is the cold? A mild infection of the nose and throat. Sneezing Cough');
   assert.equal(topics[0].id, 'mp1');
 });
+
+test('parseArticles marks MEDLINE-indexed papers and drops preprints and opinion pieces', () => {
+  const art = (pmid, status, types, extra = '') => `<PubmedArticle><MedlineCitation Status="${status}"><PMID Version="1">${pmid}</PMID><Article><Journal><Title>J</Title></Journal><ArticleTitle>T${pmid}</ArticleTitle><Abstract><AbstractText>Some abstract text.</AbstractText></Abstract><PublicationTypeList>${types.map((t) => `<PublicationType>${t}</PublicationType>`).join('')}</PublicationTypeList></Article></MedlineCitation>${extra}</PubmedArticle>`;
+  const xml = art(1, 'MEDLINE', ['Meta-Analysis'])
+    + art(2, 'Publisher', ['Journal Article'])
+    + art(3, 'Publisher', ['Journal Article'], '<PubmedData><ArticleIdList><ArticleId IdType="pmc">PMC1</ArticleId></ArticleIdList></PubmedData>')
+    + art(4, 'MEDLINE', ['Journal Article', 'Preprint'])
+    + art(5, 'MEDLINE', ['Editorial'])
+    + art(6, 'MEDLINE', ['Comment']);
+  const out = parseArticles(xml);
+  assert.deepEqual(out.map((a) => [a.pmid, a.indexed]), [['1', true], ['2', false], ['3', true]]);
+});

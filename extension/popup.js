@@ -75,6 +75,8 @@
     if (ev.detail) li.querySelector('small').textContent = ev.detail;
   }
 
+  R.bindCitations(resultEl);
+
   function showResult(result, serverUrl) {
     resultEl.innerHTML = R.renderResult(result, { serverUrl: serverUrl });
     show('result');
